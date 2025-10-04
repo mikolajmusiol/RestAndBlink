@@ -55,15 +55,15 @@ class ScoreManager:
         if time_clamped == 0:
             return 0
         
-        # Calculate exponential score
-        # We need to normalize e^x for x in [0, 300] to [0, 100]
-        # e^300 is too large, so we'll use a scaled version: e^(x/60)
-        # This gives us e^5 ≈ 148.4 at max time
-        scaled_time = time_clamped / 60.0  # Scale to [0, 5]
+        # Calculate fairer exponential score
+        # Use e^(x/120) instead of e^(x/60) for more balanced scoring
+        # This gives us e^2.5 ≈ 12.18 at max time (300s), much more reasonable
+        # Promotes continuous exercise but doesn't overly penalize breaks
+        scaled_time = time_clamped / 120.0  # Scale to [0, 2.5] for 300 seconds
         raw_score = math.exp(scaled_time)
         
-        # Normalize to 0-100: (e^(x/60) - 1) / (e^5 - 1) * 100
-        max_raw_score = math.exp(5.0)  # e^5 ≈ 148.4
+        # Normalize to 0-100: (e^(x/120) - 1) / (e^2.5 - 1) * 100
+        max_raw_score = math.exp(2.5)  # e^2.5 ≈ 12.18
         normalized_score = ((raw_score - 1) / (max_raw_score - 1)) * 100
         
         return int(normalized_score)  # Cast to int as requested
@@ -90,12 +90,7 @@ class ScoreManager:
             time_intervals = [interval * scale_factor for interval in time_intervals]
         
         # Calculate score for each interval and sum them
-        total_score = 0
-        for interval in time_intervals:
-            interval_score = self.calculate_interval_score(interval)
-            total_score += interval_score
-        
-        return total_score
+        return sum(self.calculate_interval_score(interval) for interval in time_intervals)
     
     def add_session(self, time_intervals, exercise_type="general"):
         """
@@ -172,10 +167,6 @@ class ScoreManager:
         Returns:
             dict: Examples of different interval combinations and their scores
         """
-        examples = {
-            'single_300s': self.calculate_session_score([300]),  # 5 minutes as one interval
-            'four_intervals': self.calculate_session_score([120, 70, 50, 60]),  # Example from request
-            'two_intervals': self.calculate_session_score([150, 150]),  # Two 2.5min intervals
-            'many_short': self.calculate_session_score([30, 30, 30, 30, 30, 30, 30, 30, 30, 30]),  # Ten 30s intervals
+        return {
+            'example_intervals': self.calculate_session_score([120, 70, 50, 60]),  # 300 seconds total
         }
-        return examples
