@@ -204,7 +204,7 @@ class EnhancedWellnessWindow(QMainWindow):
         self.create_header(main_layout)
         
         # Navigation section
-        self.create_navigation(main_layout)
+        self.create_fixed_navigation(main_layout)
         
         # Separator line (20% from top)
         separator = QFrame()
