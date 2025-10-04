@@ -24,6 +24,23 @@ class MainTab(QWidget):
         self._start_initial_countdown()
         self.gif_movie.start() # Start animacji GIF-a
 
+    def reset_break_timer(self, x_angle, y_angle):
+        """
+        Resetuje licznik czasu przerwy do wartości początkowej
+        i wyświetla ostrzeżenie.
+        """
+        # Sprawdzamy, czy aplikacja jest w trybie przerwy
+        if self.current_seconds_left > 0:
+            self.current_seconds_left = self.total_time_seconds  # Reset czasu
+            self.timer.stop()
+            self.timer.start(1000)
+
+            self._update_display(self.current_seconds_left)
+
+            # Aktualizacja UI
+            self.status_label.setText(f"UWAGA! RESET! Patrzysz w ekran! (X:{x_angle:.1f})")
+            print(f"Timer ZRESETOWANY! Użytkownik spojrzał w ekran (Kąt X: {x_angle:.1f})")
+
     def _setup_layout(self):
         main_layout = QHBoxLayout() # Główny layout poziomy
 
@@ -31,16 +48,16 @@ class MainTab(QWidget):
         timer_section_layout = QVBoxLayout()
         timer_section_layout.setAlignment(Qt.AlignCenter) # Wyśrodkowanie elementów timera
 
-        status_label = QLabel("CZAS DO KOŃCA PRACY")
-        status_label.setAlignment(Qt.AlignCenter)
-        status_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #555;") # Styl dla etykiety statusu
+        self.status_label = QLabel("CZAS DO KOŃCA PRACY")
+        self.status_label.setAlignment(Qt.AlignCenter)
+        self.status_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #555;")
 
         self.current_time_label = QLabel("05:00") # Początkowy czas
         self.current_time_label.setAlignment(Qt.AlignCenter)
         self.current_time_label.setStyleSheet("font-size: 60px; font-weight: bold; color: #333;") # Większa czcionka
 
         timer_section_layout.addStretch(1) # Wypchnij do środka
-        timer_section_layout.addWidget(status_label)
+        timer_section_layout.addWidget(self.status_label)
         timer_section_layout.addWidget(self.current_time_label)
         timer_section_layout.addStretch(1) # Wypchnij do środka
 
@@ -93,13 +110,14 @@ class MainTab(QWidget):
 
     def _update_countdown(self):
         self.current_seconds_left -= 1
+
         if self.current_seconds_left <= 0:
             self.current_seconds_left = 0
             self.timer.stop()
             self.timer_finished.emit()
             print("Timer zakończył odliczanie!")
-            # Tutaj możesz zatrzymać GIF-a, jeśli chcesz
-            # self.gif_movie.stop()
+            self.gif_movie.stop()
+            self.status_label.setText("CZAS PRACY!")
 
         self._update_display(self.current_seconds_left)
 

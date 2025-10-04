@@ -1,16 +1,22 @@
+# eye_monitor.py (Zaktualizowany)
 import cv2
 import mediapipe as mp
 import numpy as np
 import time
 
+from PyQt5.QtCore import QThread, pyqtSignal
+
 # ---- MediaPipe ----
 mp_face_mesh = mp.solutions.face_mesh
 
-# ---- Punkty oczu ----
+# ---- Punkty oczu (bez zmian) ----
 LEFT_EYE_LANDMARKS = [33, 133, 159, 145]
 RIGHT_EYE_LANDMARKS = [362, 263, 386, 374]
 
+
 class EyeTracker:
+    # ... (cała klasa EyeTracker BEZ ZMIAN) ...
+    # Zostawiamy ją w tej samej formie, jak ją zdefiniowałeś.
     def __init__(self, rest_threshold=10):
         self.cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # <-- force backend
         if not self.cap.isOpened():
@@ -34,6 +40,7 @@ class EyeTracker:
         eye_center = np.mean(points, axis=0)
         return eye_center, (x_min, y_min, x_max, y_max)
 
+    # ... (reszta metod EyeTracker bez zmian) ...
     def gaze_angles(self, eye_center, pupil, eye_width, eye_height):
         dx = (pupil[0] - eye_center[0]) / eye_width
         dy = (pupil[1] - eye_center[1]) / eye_height
@@ -45,7 +52,7 @@ class EyeTracker:
         ret, frame = self.cap.read()
         if not ret:
             return None
-
+        # ... (reszta logiki get_gaze) ...
         self.h, self.w, _ = frame.shape
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = self.face_mesh.process(frame_rgb)
@@ -56,7 +63,7 @@ class EyeTracker:
             face_landmarks = results.multi_face_landmarks[0].landmark
 
             if len(face_landmarks) <= 473:
-                print("⚠️ Iris landmarks missing")
+                # print("⚠️ Iris landmarks missing") # Zostawiamy w komentarzu, żeby nie zaśmiecać konsoli
                 return None
 
             # Środek oczu i prostokąty
@@ -73,7 +80,7 @@ class EyeTracker:
             avg_angle_x = (angle_x_left + angle_x_right) / 2
             avg_angle_y = (angle_y_left + angle_y_right) / 2
 
-            # Czy patrzy w ekran
+            # Czy patrzy w ekran (logika bez zmian)
             left_dx = (left_pupil[0] - left_eye_center[0]) / (lx2 - lx1)
             right_dx = (right_pupil[0] - right_eye_center[0]) / (rx2 - rx1)
             avg_dx = (left_dx + right_dx) / 2
@@ -91,6 +98,7 @@ class EyeTracker:
 
             if show_frame:
                 color = (0, 255, 0) if looking_at_screen else (0, 0, 255)
+                # ... (reszta rysowania bez zmian) ...
                 cv2.rectangle(frame, (int(lx1), int(ly1)), (int(lx2), int(ly2)), color, 1)
                 cv2.rectangle(frame, (int(rx1), int(ry1)), (int(rx2), int(ry2)), color, 1)
                 cv2.circle(frame, tuple(left_pupil.astype(int)), 2, (255, 0, 0), -1)
@@ -112,14 +120,42 @@ class EyeTracker:
         cv2.destroyAllWindows()
 
 
-if __name__ == "__main__":
-    tracker = EyeTracker()
-    try:
-        while True:
-            result = tracker.get_gaze(show_frame=True)
+class EyeMonitorWorker(QThread):
+    """
+    Wątek roboczy do obsługi EyeTracker (OpenCV), aby nie blokować UI.
+    """
+    gaze_detected_signal = pyqtSignal(bool, float, float)
+
+    # ZMIANA: Przyjmujemy instancję EyeTracker
+    def __init__(self, tracker_instance, parent=None):
+        super().__init__(parent)
+        self.running = True
+        self.tracker = tracker_instance  # Używamy przekazanej instancji
+        self.check_interval_ms = 100
+
+    def run(self):
+        """Główna pętla wątku monitorującego."""
+        while self.running:
+            start_time = time.time()
+
+            # 1. Wywołanie metody śledzenia wzroku
+            result = self.tracker.get_gaze(show_frame=False)
+
+            # 2. Analiza wyniku i emitowanie sygnału
             if result:
                 looking, x, y = result
-                print(f"Patrzy w ekran: {looking}, Kat X:{x:.1f}, Kat Y:{y:.1f}")
-            time.sleep(0.1)  # wywołanie co sekundę
-    except KeyboardInterrupt:
-        tracker.release()
+                if looking:
+                    self.gaze_detected_signal.emit(looking, x, y)
+
+            # 3. Kontrola interwału
+            elapsed_time = time.time() - start_time
+            sleep_time = (self.check_interval_ms / 1000) - elapsed_time
+            if sleep_time > 0:
+                time.sleep(sleep_time)
+
+    def stop(self):
+        """Bezpieczne zatrzymanie wątku."""
+        self.running = False
+        self.wait()  # Czekaj na zakończenie wątku
+        # USUNIĘTO: self.tracker.release() - zostawiamy to dla main.py
+        print("Eye Monitor: Zatrzymano wątek roboczy.")
