@@ -9,7 +9,6 @@ from ui.tray_icon import BreakReminderTrayIcon
 from ui.main_window import SettingsStatsWindow
 from vision.eye_monitor import EyeMonitorWorker, EyeTracker
 
-
 class ApplicationController:
     """
     Główny kontroler łączący logikę (Timer, Vision) z UI (TrayIcon, Windows).
