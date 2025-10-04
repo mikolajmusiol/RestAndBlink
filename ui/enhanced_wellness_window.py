@@ -184,29 +184,27 @@ class EnhancedWellnessWindow(QMainWindow):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
         
-        # Top header section
+        # Top header section with stats (always visible)
         self.create_header(main_layout)
         
-        # Navigation section
-        self.create_navigation(main_layout)
+        # Navigation section under header (always visible)
+        self.create_fixed_navigation(main_layout)
         
-        # Separator line (20% from top)
-        separator = QFrame()
-        separator.setFrameShape(QFrame.HLine)
-        separator.setStyleSheet("background-color: #404448; border: none; height: 2px;")
-        main_layout.addWidget(separator)
+        # Separator line under navigation
+        self.create_navigation_separator(main_layout)
         
         # Content area
         self.create_content_area(main_layout)
     
     def create_header(self, parent_layout):
-        """Create the top header with logo and user info."""
+        """Create the top header with logo, user info and centered quick stats."""
         header_widget = QWidget()
-        header_widget.setFixedHeight(80)
-        header_widget.setStyleSheet("background-color: #1a1d1f; border-bottom: 1px solid #404448;")
+        header_widget.setFixedHeight(90)  # Normal height for smaller cards
+        header_widget.setStyleSheet("background-color: #1a1d1f;")
         
         header_layout = QHBoxLayout(header_widget)
-        header_layout.setContentsMargins(30, 20, 30, 20)
+        header_layout.setContentsMargins(30, 10, 30, 10)
+        header_layout.setSpacing(20)
         
         # Left side - Logo
         logo_label = QLabel("Rest&Blink")
@@ -214,8 +212,28 @@ class EnhancedWellnessWindow(QMainWindow):
         logo_label.setStyleSheet("color: #7cb9e8; border: none;")
         header_layout.addWidget(logo_label)
         
-        # Spacer
-        header_layout.addStretch()
+        # Left spacer to center the stats
+        header_layout.addStretch(1)
+        
+        # Middle - Centered Quick stats cards
+        quick_stats_widget = QWidget()
+        quick_stats_layout = QHBoxLayout(quick_stats_widget)
+        quick_stats_layout.setContentsMargins(0, 0, 0, 0)
+        quick_stats_layout.setSpacing(15)
+        
+        # Today's sessions card
+        today_card = self.create_quick_stat_card("Today's Sessions", "8", "#7cb9e8")
+        current_streak_card = self.create_quick_stat_card("Current Streak", f"{self.user_data.get('level', 1)} days", "#90e0ef")
+        total_time_card = self.create_quick_stat_card("Total Time", "12h 15m", "#a8dadc")
+        
+        quick_stats_layout.addWidget(today_card)
+        quick_stats_layout.addWidget(current_streak_card)
+        quick_stats_layout.addWidget(total_time_card)
+        
+        header_layout.addWidget(quick_stats_widget)
+        
+        # Right spacer to center the stats
+        header_layout.addStretch(1)
         
         # Right side - User info
         user_info_widget = QWidget()
@@ -242,8 +260,8 @@ class EnhancedWellnessWindow(QMainWindow):
         header_layout.addWidget(user_info_widget)
         parent_layout.addWidget(header_widget)
     
-    def create_navigation(self, parent_layout):
-        """Create navigation tiles."""
+    def create_fixed_navigation(self, parent_layout):
+        """Create fixed navigation tiles that are always visible."""
         nav_widget = QWidget()
         nav_widget.setFixedHeight(70)
         nav_widget.setStyleSheet("background-color: #1a1d1f;")
@@ -252,7 +270,7 @@ class EnhancedWellnessWindow(QMainWindow):
         nav_layout.setContentsMargins(30, 15, 30, 15)
         nav_layout.setSpacing(20)
         
-        # Add spacer
+        # Add spacer to center navigation
         nav_layout.addStretch()
         
         # Navigation buttons
@@ -272,10 +290,30 @@ class EnhancedWellnessWindow(QMainWindow):
             self.nav_buttons[nav_id] = btn
             nav_layout.addWidget(btn)
         
-        # Add spacer
+        # Add spacer to center navigation
         nav_layout.addStretch()
         
         parent_layout.addWidget(nav_widget)
+    
+    def create_navigation_separator(self, parent_layout):
+        """Create a separator line under navigation."""
+        # Small spacing
+        spacer_top = QWidget()
+        spacer_top.setFixedHeight(10)
+        spacer_top.setStyleSheet("background-color: #1a1d1f;")
+        parent_layout.addWidget(spacer_top)
+        
+        # Separator line
+        separator = QFrame()
+        separator.setFixedHeight(2)
+        separator.setStyleSheet("background-color: #404448; border: none;")
+        parent_layout.addWidget(separator)
+        
+        # Small spacing after
+        spacer_bottom = QWidget()
+        spacer_bottom.setFixedHeight(10)
+        spacer_bottom.setStyleSheet("background-color: #1a1d1f;")
+        parent_layout.addWidget(spacer_bottom)
     
     def create_content_area(self, parent_layout):
         """Create the main content area."""
@@ -301,38 +339,17 @@ class EnhancedWellnessWindow(QMainWindow):
         
         parent_layout.addWidget(self.content_stack)
         
-        # Start with stats section
-        self.switch_section("stats")
+        # Start with main section (which is now empty)
+        self.switch_section("main")
     
     def create_main_page(self):
-        """Create the main dashboard page."""
+        """Create empty main page (content moved to header)."""
         main_page = QWidget()
         main_page.setStyleSheet("background-color: #1a1d1f;")
         main_layout = QVBoxLayout(main_page)
         main_layout.setContentsMargins(30, 30, 30, 30)
         
-        # Main dashboard content
-        dashboard_label = QLabel("Main Dashboard")
-        dashboard_label.setFont(QFont("Segoe UI", 24, QFont.Medium))
-        dashboard_label.setStyleSheet("color: #e8e9ea; margin-bottom: 20px;")
-        main_layout.addWidget(dashboard_label)
-        
-        # Quick stats cards
-        quick_stats_widget = QWidget()
-        quick_stats_layout = QHBoxLayout(quick_stats_widget)
-        quick_stats_layout.setSpacing(20)
-        
-        # Today's sessions card
-        today_card = self.create_quick_stat_card("Today's Sessions", "8", "#7cb9e8")
-        current_streak_card = self.create_quick_stat_card("Current Streak", f"{self.user_data.get('level', 1)} days", "#90e0ef")
-        total_time_card = self.create_quick_stat_card("Total Time", "12h 15m", "#a8dadc")
-        
-        quick_stats_layout.addWidget(today_card)
-        quick_stats_layout.addWidget(current_streak_card)
-        quick_stats_layout.addWidget(total_time_card)
-        quick_stats_layout.addStretch()
-        
-        main_layout.addWidget(quick_stats_widget)
+        # Empty main page - all content moved to header
         main_layout.addStretch()
         
         return main_page
@@ -650,26 +667,50 @@ class EnhancedWellnessWindow(QMainWindow):
         return earned_achievements, all_achievements
     
     def create_quick_stat_card(self, title, value, color):
-        """Create a quick stat card for the main page."""
+        """Create a quick stat card without borders."""
         card = QFrame()
-        card.setProperty("class", "stats-card")
-        card.setMinimumSize(200, 120)
-        card.setMaximumSize(250, 120)
+        card.setFrameStyle(QFrame.NoFrame)  # Remove frame
         
+        # Smaller, more reasonable size
+        card.setFixedSize(180, 70)
+        card.setMinimumSize(180, 70)
+        
+        # Simple card style without borders
+        card.setStyleSheet("""
+            QFrame {
+                background-color: #232629;
+                border: none;
+                border-radius: 8px;
+                padding: 8px;
+            }
+            QFrame:hover {
+                background-color: #2a2d30;
+            }
+        """)
+        
+        # Use a simple vertical layout with tight spacing
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(2)
         
+        # Title label - small and compact
         title_label = QLabel(title)
-        title_label.setFont(QFont("Segoe UI", 12, QFont.Medium))  
-        title_label.setStyleSheet(f"color: {color};")
+        title_label.setFont(QFont("Segoe UI", 9, QFont.Medium))  
+        title_label.setStyleSheet(f"color: {color}; background: transparent; margin: 0px; padding: 0px;")
+        title_label.setWordWrap(True)
+        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setMaximumHeight(18)
         
+        # Value label - smaller to fit
         value_label = QLabel(value)
-        value_label.setFont(QFont("Segoe UI", 20, QFont.Bold))
-        value_label.setStyleSheet("color: #e8e9ea;")
+        value_label.setFont(QFont("Segoe UI", 12, QFont.Bold))
+        value_label.setStyleSheet("color: #e8e9ea; background: transparent; margin: 0px; padding: 0px;")
+        value_label.setAlignment(Qt.AlignCenter)
+        value_label.setMinimumHeight(25)
         
         layout.addWidget(title_label)
         layout.addWidget(value_label)
-        layout.addStretch()
+        layout.addStretch()  # Push content to top
         
         return card
     
@@ -682,14 +723,27 @@ class EnhancedWellnessWindow(QMainWindow):
         stats_layout.setContentsMargins(30, 20, 30, 20)
         stats_layout.setSpacing(20)
         
-        # Stats header
+        # Stats header - wrapped in container for centering
+        header_container = QWidget()
+        header_container.setStyleSheet("border: none; background: transparent;")
+        header_layout = QHBoxLayout(header_container)
+        header_layout.setContentsMargins(0, 0, 0, 10)
+        
+        # Add stretchers to center the header
+        header_layout.addStretch()
+        
         stats_header = QLabel("Stats: Health & Wellness Analytics")
         stats_header.setFont(QFont("Segoe UI", 20, QFont.Medium))
-        stats_header.setStyleSheet("color: #e8e9ea; margin-bottom: 10px;")
-        stats_layout.addWidget(stats_header)
+        stats_header.setStyleSheet("color: #e8e9ea; border: none; background: transparent;")
+        header_layout.addWidget(stats_header)
+        
+        header_layout.addStretch()
+        
+        stats_layout.addWidget(header_container)
         
         # Period selection buttons
         period_widget = QWidget()
+        period_widget.setStyleSheet("border: none; background: transparent;")
         period_layout = QHBoxLayout(period_widget)
         period_layout.setContentsMargins(0, 0, 0, 0)
         period_layout.setSpacing(15)
