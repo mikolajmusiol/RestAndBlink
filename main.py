@@ -24,6 +24,7 @@ class ApplicationController:
         # 1. Bezpieczne określenie ścieżki do Ikony (Klucz do rozwiązania problemu z wyświetlaniem)
         base_dir = os.path.dirname(os.path.abspath(__file__))
         self.ICON_PATH = os.path.join(base_dir, "resources", "icons", "flower-2.svg")
+        self.APP_ICON_PATH = os.path.join(base_dir, "resources", "icons", "app-icon.svg")
 
         # Sprawdzenie, czy plik istnieje
         if not os.path.exists(self.ICON_PATH):
@@ -39,7 +40,7 @@ class ApplicationController:
         """Tworzy instancje UI i Logiki."""
 
         # UI: Okno Ustawień/Statystyk
-        self.settings_window = SettingsStatsWindow()
+        self.settings_window = SettingsStatsWindow(self.APP_ICON_PATH)
 
         # UI: Applet w zasobniku
         self.tray_icon = BreakReminderTrayIcon(self.ICON_PATH)

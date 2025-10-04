@@ -1,7 +1,8 @@
-# ui/main_window.py (Zmodyfikowany)
+import os
 
 from PyQt5.QtWidgets import QMainWindow, QVBoxLayout, QWidget, QLabel
 from PyQt5.QtCore import Qt, pyqtSignal  # Dodaj import pyqtSignal
+from PyQt5.QtGui import QIcon # NOWY IMPORT
 
 
 class SettingsStatsWindow(QMainWindow):
@@ -12,10 +13,13 @@ class SettingsStatsWindow(QMainWindow):
     window_opened_signal = pyqtSignal()
     window_closed_signal = pyqtSignal()
 
-    def __init__(self):
+    def __init__(self, icon_path):
         super().__init__()
-        self.setWindowTitle("Break Reminder - Statystyki i Ustawienia")
+        self.setWindowTitle("Break Reminder")
         self.setGeometry(300, 300, 400, 300)
+
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
