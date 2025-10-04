@@ -1,14 +1,16 @@
-# ui/main_window.py
+# ui/main_window.py (Zmodyfikowany)
 
 from PyQt5.QtWidgets import QMainWindow, QVBoxLayout, QWidget, QLabel
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal  # Dodaj import pyqtSignal
 
 
 class SettingsStatsWindow(QMainWindow):
     """
     Główne okno aplikacji do wyświetlania ustawień i statystyk gamifikacji.
-    Docelowo będzie zawierać logikę do konfiguracji i wyświetlania punktów.
     """
+    # Nowe sygnały emitowane przy otwieraniu/zamykaniu okna
+    window_opened_signal = pyqtSignal()
+    window_closed_signal = pyqtSignal()
 
     def __init__(self):
         super().__init__()
@@ -26,9 +28,13 @@ class SettingsStatsWindow(QMainWindow):
         layout.addWidget(title)
         layout.addWidget(description)
 
+    def showEvent(self, event):
+        """Emituje sygnał po otwarciu okna (pokazaniu)."""
+        super().showEvent(event)
+        self.window_opened_signal.emit()  # INFORMUJEMY: Okno się Otworzyło
+
     def closeEvent(self, event):
-        """
-        Ukrywa okno zamiast je zamykać, aby aplikacja działała w tle (w zasobniku).
-        """
+        """Ukrywa okno i emituje sygnał zamknięcia."""
         self.hide()
         event.ignore()
+        self.window_closed_signal.emit()  # INFORMUJEMY: Okno się Zamknęło

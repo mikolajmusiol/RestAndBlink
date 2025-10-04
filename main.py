@@ -44,7 +44,7 @@ class ApplicationController:
         # UI: Applet w zasobniku
         self.tray_icon = BreakReminderTrayIcon(self.ICON_PATH)
 
-        # LOGIKA: Timer (QTimer do demonstracji)
+        # LOGIKA: Timer
         self.timer = QTimer()
         self.timer.setInterval(15000)  # 15 sekund na potrzeby testu
 
@@ -54,19 +54,35 @@ class ApplicationController:
     def _connect_signals(self):
         """Łączy sygnały pomiędzy komponentami."""
 
-        # 1. Połączenie Appletu (kliknięcie/menu) -> Okno
+        # ... (Istniejące połączenia bez zmian) ...
         self.tray_icon.show_settings_signal.connect(self.settings_window.show)
-
-        # 2. Połączenie Timera -> Applet (powiadomienie)
         self.timer.timeout.connect(self.tray_icon.show_break_reminder)
-
-        # 3. Połączenie Appletu -> Wyjście z aplikacji
         self.tray_icon.exit_app_signal.connect(self.exit_application)
+
+        # --- KLUCZOWE NOWE POŁĄCZENIA ---
+        # 1. Zatrzymanie timera, gdy okno ustawień jest otwierane
+        self.settings_window.window_opened_signal.connect(self.pause_main_timer)
+
+        # 2. Wznowienie timera, gdy okno ustawień jest zamykane (ukrywane)
+        self.settings_window.window_closed_signal.connect(self.resume_main_timer)
+
+    # --- NOWE METODY KONTROLUJĄCE TIMER ---
+    def pause_main_timer(self):
+        """Zatrzymuje główny timer odliczający czas pracy."""
+        if self.timer.isActive():
+            self.timer.stop()
+            print("TIMER: Zatrzymany (otwarto okno ustawień).")
+
+    def resume_main_timer(self):
+        """Wznawia główny timer odliczający czas pracy."""
+        if not self.timer.isActive():
+            self.timer.start()
+            print("TIMER: Wznowiony (zamknięto okno ustawień).")
 
     def _start_timer(self):
         """Uruchamia timer."""
-        self.timer.start()
-        print(f"Aplikacja uruchomiona. Przerwa za {self.timer.interval() / 1000} sekund (TESTOWO).")
+        # Używamy resume_main_timer, aby uruchomić timer na starcie aplikacji
+        self.resume_main_timer()
 
     def exit_application(self):
         """Bezpiecznie zamyka aplikację."""

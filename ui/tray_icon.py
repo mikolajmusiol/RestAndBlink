@@ -31,7 +31,7 @@ class BreakReminderTrayIcon(QSystemTrayIcon):
     def _setup_actions(self):
         """Tworzy akcje menu kontekstowego appletu."""
 
-        settings_action = QAction("Statystyki & Ustawienia", self)
+        settings_action = QAction("BreakTimer", self)
         settings_action.triggered.connect(self._emit_show_settings)
         self.menu.addAction(settings_action)
 
