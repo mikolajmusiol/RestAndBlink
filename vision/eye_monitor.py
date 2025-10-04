@@ -1,7 +1,10 @@
+# eye_monitor.py (Zaktualizowany)
 import cv2
 import mediapipe as mp
 import numpy as np
 import time
+
+from PyQt5.QtCore import QThread, pyqtSignal
 
 # ---- MediaPipe ----
 mp_face_mesh = mp.solutions.face_mesh
@@ -10,9 +13,10 @@ mp_face_mesh = mp.solutions.face_mesh
 LEFT_EYE_LANDMARKS = [33, 133, 159, 145]
 RIGHT_EYE_LANDMARKS = [362, 263, 386, 374]
 
+
 class EyeTracker:
     def __init__(self, rest_threshold=10):
-        self.cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # <-- force backend
+        self.cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
         if not self.cap.isOpened():
             raise RuntimeError("Camera not accessible")
 
@@ -56,7 +60,6 @@ class EyeTracker:
             face_landmarks = results.multi_face_landmarks[0].landmark
 
             if len(face_landmarks) <= 473:
-                print("⚠️ Iris landmarks missing")
                 return None
 
             # Środek oczu i prostokąty
@@ -98,7 +101,6 @@ class EyeTracker:
                 cv2.putText(frame, f"X:{avg_angle_x:.1f} Y:{avg_angle_y:.1f}", (30, 50),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
 
-        # Always show the window, even if no face
         if show_frame:
             cv2.imshow("Eye Tracker", frame)
             cv2.waitKey(1)
@@ -112,14 +114,64 @@ class EyeTracker:
         cv2.destroyAllWindows()
 
 
-if __name__ == "__main__":
-    tracker = EyeTracker()
-    try:
-        while True:
-            result = tracker.get_gaze(show_frame=True)
+class EyeMonitorWorker(QThread):
+    """
+    Wątek roboczy do obsługi EyeTracker (OpenCV), aby nie blokować UI.
+    """
+    gaze_detected_signal = pyqtSignal(bool, float, float)
+
+    def __init__(self, tracker_instance, parent=None, debounce_time=0.5):
+        super().__init__(parent)
+        self.running = True
+        self.tracker = tracker_instance
+        self.check_interval_ms = 100
+
+        # Histereza czasowa (debouncing)
+        self.debounce_time = debounce_time  # Czas w sekundach (domyślnie 1.5s)
+        self.last_state_change_time = time.time()
+        self.current_state = None  # Aktualny "oficjalny" stan
+        self.pending_state = None  # Stan który czeka na potwierdzenie
+        self.pending_state_start = None  # Kiedy rozpoczął się pending state
+
+    def run(self):
+        """Główna pętla wątku monitorującego z debouncing."""
+        while self.running:
+            start_time = time.time()
+
+            # 1. Wywołanie metody śledzenia wzroku
+            result = self.tracker.get_gaze(show_frame=False)
+
             if result:
                 looking, x, y = result
-                print(f"Patrzy w ekran: {looking}, Kat X:{x:.1f}, Kat Y:{y:.1f}")
-            time.sleep(0.1)  # wywołanie co sekundę
-    except KeyboardInterrupt:
-        tracker.release()
+                current_time = time.time()
+
+                if self.current_state is None:
+                    self.current_state = looking
+                    self.gaze_detected_signal.emit(looking, x, y)
+
+                elif looking != self.current_state:
+                    if self.pending_state != looking:
+                        self.pending_state = looking
+                        self.pending_state_start = current_time
+
+                    elif current_time - self.pending_state_start >= self.debounce_time:
+                        self.current_state = looking
+                        self.gaze_detected_signal.emit(looking, x, y)
+                        self.pending_state = None
+                        self.pending_state_start = None
+
+                else:
+                    if self.pending_state is not None:
+                        self.pending_state = None
+                        self.pending_state_start = None
+
+            elapsed_time = time.time() - start_time
+            sleep_time = (self.check_interval_ms / 1000) - elapsed_time
+            if sleep_time > 0:
+                time.sleep(sleep_time)
+
+    def stop(self):
+        """Bezpieczne zatrzymanie wątku."""
+        self.running = False
+        self.wait()
+        print("Eye Monitor: Zatrzymano wątek roboczy.")
