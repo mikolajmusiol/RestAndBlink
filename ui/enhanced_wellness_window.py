@@ -29,7 +29,22 @@ class EnhancedWellnessWindow(QMainWindow):
         self.current_stats_period = "daily"
         
         self.setWindowTitle("Rest&Blink - Enhanced Wellness Dashboard")
-        self.setGeometry(100, 100, 1600, 1000)
+        
+        # Set responsive window size based on screen
+        from PyQt5.QtWidgets import QDesktopWidget
+        desktop = QDesktopWidget()
+        screen_rect = desktop.screenGeometry()
+        
+        # Use 85% of screen width and 80% of screen height
+        window_width = int(screen_rect.width() * 0.85)
+        window_height = int(screen_rect.height() * 0.80)
+        
+        # Minimum and maximum sizes
+        window_width = max(1200, min(2400, window_width))
+        window_height = max(800, min(1600, window_height))
+        
+        self.setGeometry(100, 100, window_width, window_height)
+        self.setMinimumSize(1000, 700)  # Minimum usable size
         
         # Apply dark wellness theme
         self.apply_wellness_theme()
@@ -39,6 +54,25 @@ class EnhancedWellnessWindow(QMainWindow):
         
         # Setup UI
         self.setup_ui()
+    
+    def resizeEvent(self, event):
+        """Handle window resize to update responsive layouts."""
+        super().resizeEvent(event)
+        # Rebuild achievements grid when window is resized
+        if hasattr(self, 'achievements_layout') and self.current_section == "achievements":
+            self.rebuild_achievements_grid()
+        # Stats section now uses fixed layout - no rebuild needed
+    
+    def rebuild_achievements_grid(self):
+        """Rebuild achievements grid with new column count."""
+        # Clear existing grid
+        while self.achievements_layout.count():
+            child = self.achievements_layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+        
+        # Recreate grid with new dimensions
+        self.create_responsive_achievements_grid()
         
     def apply_wellness_theme(self):
         """Apply dark bio-hacking wellness theme."""
@@ -256,8 +290,8 @@ class EnhancedWellnessWindow(QMainWindow):
         # Configure page (placeholder)
         configure_page = self.create_placeholder_page("Configuration", "Settings and preferences coming soon")
         
-        # Achievements page (placeholder)
-        achievements_page = self.create_placeholder_page("Achievements", "Achievement system coming soon")
+        # Achievements page
+        achievements_page = self.create_achievements_page()
         
         # Add pages to stack
         self.content_stack.addWidget(main_page)        # index 0
@@ -324,6 +358,241 @@ class EnhancedWellnessWindow(QMainWindow):
         layout.addStretch()
         
         return page
+    
+    def create_achievements_page(self):
+        """Create the achievements page with responsive scrollable grid."""
+        page = QWidget()
+        page.setStyleSheet("background-color: #1a1d1f;")
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(30, 30, 30, 30)
+        
+        # Create scroll area
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll_area.setStyleSheet("""
+            QScrollArea {
+                background-color: #1a1d1f;
+                border: none;
+            }
+            QScrollBar:vertical {
+                background-color: #2c3034;
+                width: 12px;
+                border-radius: 6px;
+            }
+            QScrollBar::handle:vertical {
+                background-color: #404448;
+                border-radius: 6px;
+                min-height: 20px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background-color: #5a6269;
+            }
+        """)
+        
+        # Create content widget for scroll area
+        content_widget = QWidget()
+        self.achievements_layout = QVBoxLayout(content_widget)
+        self.achievements_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Create responsive achievements grid
+        self.create_responsive_achievements_grid()
+        
+        scroll_area.setWidget(content_widget)
+        layout.addWidget(scroll_area)
+        
+        return page
+    
+    def create_responsive_achievements_grid(self):
+        """Create a responsive grid that adapts to screen width."""
+        # Get achievements data
+        earned_achievements, all_achievements = self.get_achievements_data()
+        
+        # Sort achievements: earned first, then unearned
+        sorted_achievements = []
+        # Add earned achievements first
+        for achievement in all_achievements:
+            if achievement['id'] in [ea['id'] for ea in earned_achievements]:
+                sorted_achievements.append({**achievement, 'earned': True})
+        # Then add unearned achievements
+        for achievement in all_achievements:
+            if achievement['id'] not in [ea['id'] for ea in earned_achievements]:
+                sorted_achievements.append({**achievement, 'earned': False})
+        
+        # Calculate dynamic columns based on window width
+        # More responsive - minimum 2 icons per row for narrow screens
+        available_width = self.width() - 120  # Account for margins and scrollbar
+        card_width_with_spacing = 220  # Adjusted for new card sizes (200px avg + 20px spacing)
+        min_columns = 2  # Changed from 3 to 2 for better mobile/narrow screen support
+        max_columns = 10  # Increased max for ultra-wide screens
+        columns = max(min_columns, min(max_columns, available_width // card_width_with_spacing))
+        
+        # Create dynamic grid layout for achievements
+        grid_layout = QGridLayout()
+        grid_layout.setHorizontalSpacing(20)
+        grid_layout.setVerticalSpacing(20)
+        
+        # Add achievement cards in responsive grid
+        row = 0
+        col = 0
+        for achievement in sorted_achievements:
+            card = self.create_achievement_card(achievement)
+            grid_layout.addWidget(card, row, col, Qt.AlignCenter)
+            
+            col += 1
+            if col >= columns:
+                col = 0
+                row += 1
+        
+        # Create widget to hold the grid
+        grid_widget = QWidget()
+        grid_widget.setLayout(grid_layout)
+        
+        self.achievements_layout.addWidget(grid_widget)
+        self.achievements_layout.addStretch()
+    
+    def create_achievement_card(self, achievement):
+        """Create a single achievement card."""
+        card = QFrame()
+        card.setMinimumSize(180, 130)  # Smaller minimum for narrow screens
+        card.setMaximumSize(320, 200)  # Larger maximum for wide screens
+        card.setFrameStyle(QFrame.NoFrame)  # Remove frame style
+        
+        # Simple style without borders/ovals
+        if achievement['earned']:
+            card.setStyleSheet("""
+                QFrame {
+                    background-color: #2a2d30;
+                    border: none;
+                    border-radius: 8px;
+                }
+                QFrame:hover {
+                    background-color: #323639;
+                }
+            """)
+        else:
+            card.setStyleSheet("""
+                QFrame {
+                    background-color: #1e2125;
+                    border: none;
+                    border-radius: 8px;
+                }
+                QFrame:hover {
+                    background-color: #252932;
+                }
+            """)
+        
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(10, 15, 10, 10)
+        layout.setSpacing(8)
+        layout.setAlignment(Qt.AlignCenter)
+        
+        # Achievement icon (emoji) - responsive size
+        icon_label = QLabel(achievement['badge_icon'])
+        # Dynamic font size based on card size
+        base_font_size = 48  # Base size for narrow cards
+        if self.width() > 1400:
+            icon_font_size = 56  # Larger for wide screens
+        elif self.width() > 1000:
+            icon_font_size = 52  # Medium for medium screens
+        else:
+            icon_font_size = 48  # Smaller for narrow screens
+        
+        icon_label.setFont(QFont("Segoe UI Emoji", icon_font_size))
+        icon_label.setAlignment(Qt.AlignCenter)
+        if not achievement['earned']:
+            icon_label.setStyleSheet("color: #4a4d52;")
+        else:
+            icon_label.setStyleSheet("color: #ffffff;")
+        
+        # Achievement name - shorter and cleaner
+        name_label = QLabel(achievement['name'])
+        name_label.setAlignment(Qt.AlignCenter)
+        name_label.setWordWrap(True)
+        name_label.setFont(QFont("Segoe UI", 12, QFont.Bold))
+        if achievement['earned']:
+            name_label.setStyleSheet("color: #ffffff; margin-top: 5px;")
+        else:
+            name_label.setStyleSheet("color: #8b9197; margin-top: 5px;")
+        
+        # Rarity indicator - smaller and more subtle
+        rarity_label = QLabel(achievement['rarity'].upper())
+        rarity_label.setAlignment(Qt.AlignCenter)
+        rarity_label.setFont(QFont("Segoe UI", 8, QFont.Bold))
+        
+        # Color code by rarity
+        rarity_colors = {
+            'common': '#9ca3af',
+            'uncommon': '#22c55e', 
+            'rare': '#3b82f6',
+            'epic': '#a855f7',
+            'legendary': '#f59e0b',
+            'mythic': '#ff1744'
+        }
+        rarity_color = rarity_colors.get(achievement['rarity'], '#9ca3af')
+        if not achievement['earned']:
+            rarity_color = '#5a6269'  # Gray out unearned
+        
+        rarity_label.setStyleSheet(f"color: {rarity_color}; margin-top: 3px;")
+        
+        layout.addWidget(icon_label)
+        layout.addWidget(name_label)
+        layout.addWidget(rarity_label)
+        
+        return card
+    
+    def get_achievements_data(self):
+        """Get achievements data from database."""
+        earned_achievements = []
+        all_achievements = []
+        
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Get earned achievements
+            cursor.execute("""
+                SELECT a.id, a.name, a.description, a.badge_icon, a.rarity, ua.earned_date
+                FROM Achievements a
+                JOIN UserAchievements ua ON a.id = ua.achievement_id
+                WHERE ua.user_id = ?
+                ORDER BY ua.earned_date DESC
+            """, (self.user_id,))
+            
+            for row in cursor.fetchall():
+                earned_achievements.append({
+                    'id': row[0],
+                    'name': row[1],
+                    'description': row[2],
+                    'badge_icon': row[3],
+                    'rarity': row[4],
+                    'earned_date': row[5]
+                })
+            
+            # Get all achievements
+            cursor.execute("""
+                SELECT id, name, description, badge_icon, rarity
+                FROM Achievements
+                WHERE is_active = 1
+                ORDER BY id
+            """)
+            
+            for row in cursor.fetchall():
+                all_achievements.append({
+                    'id': row[0],
+                    'name': row[1],
+                    'description': row[2],
+                    'badge_icon': row[3],
+                    'rarity': row[4]
+                })
+            
+            conn.close()
+            
+        except Exception as e:
+            print(f"Error fetching achievements data: {e}")
+        
+        return earned_achievements, all_achievements
     
     def create_quick_stat_card(self, title, value, color):
         """Create a quick stat card for the main page."""
@@ -428,15 +697,14 @@ class EnhancedWellnessWindow(QMainWindow):
         # Right side - Time & Score
         right_stats_widget = self.create_right_stats_widget(period_data, period)
         
-        # Add to grid layout
-        dashboard_layout.addWidget(charts_widget, 0, 0, 2, 1)  # Charts span 2 rows, 1 column
-        dashboard_layout.addWidget(avg_stats_widget, 0, 1, 1, 1)  # Top middle
-        dashboard_layout.addWidget(right_stats_widget, 0, 2, 1, 1)  # Top right
+        # Simple fixed layout - no responsive changes
+        dashboard_layout.addWidget(charts_widget, 0, 0, 2, 1)  # Charts on left, span 2 rows
+        dashboard_layout.addWidget(avg_stats_widget, 0, 1, 1, 1)  # Top right
+        dashboard_layout.addWidget(right_stats_widget, 1, 1, 1, 1)  # Bottom right
         
         # Set column stretch
         dashboard_layout.setColumnStretch(0, 3)  # Charts take more space
-        dashboard_layout.setColumnStretch(1, 1)  # Average stats
-        dashboard_layout.setColumnStretch(2, 1)  # Right stats
+        dashboard_layout.setColumnStretch(1, 1)  # Right column
         
         self.stats_content_layout.addWidget(dashboard_widget)
         self.stats_content_layout.addStretch()
