@@ -488,23 +488,78 @@ class EnhancedWellnessWindow(QMainWindow):
         layout.setSpacing(8)
         layout.setAlignment(Qt.AlignCenter)
         
-        # Achievement icon (emoji) - responsive size
-        icon_label = QLabel(achievement['badge_icon'])
-        # Dynamic font size based on card size
-        base_font_size = 48  # Base size for narrow cards
-        if self.width() > 1400:
-            icon_font_size = 56  # Larger for wide screens
-        elif self.width() > 1000:
-            icon_font_size = 52  # Medium for medium screens
-        else:
-            icon_font_size = 48  # Smaller for narrow screens
+        # Achievement icon - use reliable symbols instead of problematic emoji
+        original_emoji = achievement['badge_icon']
         
-        icon_label.setFont(QFont("Segoe UI Emoji", icon_font_size))
-        icon_label.setAlignment(Qt.AlignCenter)
-        if not achievement['earned']:
-            icon_label.setStyleSheet("color: #4a4d52;")
+        # Complete mapping to Unicode symbols that work reliably on Linux
+        symbol_mapping = {
+            '🎯': '●',     # Target -> Bullet
+            '🚀': '▲',     # Rocket -> Triangle
+            '💪': '♦',     # Muscle -> Diamond
+            '⭐': '★',     # Star -> Star (should work)
+            '🏃': '►',     # Runner -> Play symbol
+            '👑': '♔',     # Crown -> King
+            '🔸': '◇',     # Orange diamond -> White diamond
+            '🔹': '◆',     # Blue diamond -> Black diamond
+            '🔶': '◆',     # Large orange diamond -> Black diamond
+            '🔷': '◇',     # Large blue diamond -> White diamond
+            '⏰': '⊙',     # Alarm clock -> Circled dot
+            '⏳': '⧗',     # Hourglass -> Hourglass symbol
+        }
+        
+        # Use symbol mapping - fallback to first character if not found
+        display_icon = symbol_mapping.get(original_emoji, original_emoji[0] if original_emoji else '•')
+        
+        icon_label = QLabel(display_icon)
+        
+        # Dynamic font size
+        if self.width() > 1400:
+            icon_font_size = 56
+        elif self.width() > 1000:
+            icon_font_size = 52
         else:
-            icon_label.setStyleSheet("color: #ffffff;")
+            icon_font_size = 48
+        
+        # Use standard font that supports Unicode symbols
+        symbol_font = QFont()
+        symbol_font.setPointSize(icon_font_size)
+        symbol_font.setFamily("DejaVu Sans")  # Reliable font for symbols
+        symbol_font.setWeight(QFont.Bold)  # Make symbols more prominent
+        
+        icon_label.setFont(symbol_font)
+        icon_label.setAlignment(Qt.AlignCenter)
+        
+        # Enhanced styling with color coding for different rarities
+        rarity_colors = {
+            'common': '#9ca3af',
+            'uncommon': '#22c55e', 
+            'rare': '#3b82f6',
+            'epic': '#a855f7',
+            'legendary': '#f59e0b',
+            'mythic': '#ff1744'
+        }
+        
+        if not achievement['earned']:
+            # Gray out unearned achievements
+            icon_label.setStyleSheet("""
+                QLabel {
+                    color: #4a4d52;
+                    font-weight: bold;
+                    text-align: center;
+                    background: transparent;
+                }
+            """)
+        else:
+            # Color earned achievements by rarity
+            icon_color = rarity_colors.get(achievement['rarity'], '#ffffff')
+            icon_label.setStyleSheet(f"""
+                QLabel {{
+                    color: {icon_color};
+                    font-weight: bold;
+                    text-align: center;
+                    background: transparent;
+                }}
+            """)
         
         # Achievement name - shorter and cleaner
         name_label = QLabel(achievement['name'])
