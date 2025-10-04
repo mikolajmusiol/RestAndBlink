@@ -1,20 +1,14 @@
-# eye_monitor.py (Zaktualizowany)
 import cv2
 import mediapipe as mp
 import numpy as np
 import time
-
+import math
 from PyQt5.QtCore import QThread, pyqtSignal
 
-# ---- MediaPipe ----
 mp_face_mesh = mp.solutions.face_mesh
 
-# ---- Punkty oczu ----
-LEFT_EYE_LANDMARKS = [33, 133, 159, 145]
-RIGHT_EYE_LANDMARKS = [362, 263, 386, 374]
 
-
-class EyeTracker:
+class FaceAngleTracker:
     def __init__(self, rest_threshold=10):
         self.cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
         if not self.cap.isOpened():
@@ -31,19 +25,30 @@ class EyeTracker:
         self.h = 0
         self.w = 0
 
-    def eye_ratio(self, eye_points, landmarks):
-        points = np.array([(landmarks[i].x * self.w, landmarks[i].y * self.h) for i in eye_points])
-        x_min, y_min = np.min(points, axis=0)
-        x_max, y_max = np.max(points, axis=0)
-        eye_center = np.mean(points, axis=0)
-        return eye_center, (x_min, y_min, x_max, y_max)
+    def get_head_angles(self, landmarks):
+        """Oblicz yaw i pitch (obrót i pochylenie głowy)."""
+        nose = np.array([landmarks[1].x, landmarks[1].y, landmarks[1].z])
+        left_eye = np.array([landmarks[33].x, landmarks[33].y, landmarks[33].z])
+        right_eye = np.array([landmarks[263].x, landmarks[263].y, landmarks[263].z])
+        forehead = np.array([landmarks[10].x, landmarks[10].y, landmarks[10].z])
+        chin = np.array([landmarks[152].x, landmarks[152].y, landmarks[152].z])
 
-    def gaze_angles(self, eye_center, pupil, eye_width, eye_height):
-        dx = (pupil[0] - eye_center[0]) / eye_width
-        dy = (pupil[1] - eye_center[1]) / eye_height
-        angle_x = dx * 30
-        angle_y = dy * 20
-        return angle_x, angle_y
+        # Wektory osi twarzy
+        horizontal = right_eye - left_eye
+        vertical = chin - forehead
+
+        yaw = math.degrees(math.atan2(horizontal[1], horizontal[0]))  # obrót w bok
+        pitch = math.degrees(math.atan2(vertical[2], vertical[1]))    # pochylenie góra/dół
+
+        return yaw, pitch
+
+    def draw_face_mesh(self, frame, landmarks):
+        """Rysuje siatkę twarzy."""
+        for lm in landmarks:
+            x, y = int(lm.x * self.w), int(lm.y * self.h)
+            cv2.circle(frame, (x, y), 1, (0, 255, 0), -1)
+
+        return frame
 
     def get_gaze(self, show_frame=False):
         ret, frame = self.cap.read()
@@ -54,38 +59,15 @@ class EyeTracker:
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = self.face_mesh.process(frame_rgb)
 
-        looking_at_screen, avg_angle_x, avg_angle_y = None, None, None
+        looking_at_screen, yaw, pitch = None, None, None
 
         if results.multi_face_landmarks:
             face_landmarks = results.multi_face_landmarks[0].landmark
 
-            if len(face_landmarks) <= 473:
-                return None
+            yaw, pitch = self.get_head_angles(face_landmarks)
 
-            # Środek oczu i prostokąty
-            left_eye_center, (lx1, ly1, lx2, ly2) = self.eye_ratio(LEFT_EYE_LANDMARKS, face_landmarks)
-            right_eye_center, (rx1, ry1, rx2, ry2) = self.eye_ratio(RIGHT_EYE_LANDMARKS, face_landmarks)
-
-            # Źrenice
-            left_pupil = np.array([face_landmarks[468].x * self.w, face_landmarks[468].y * self.h])
-            right_pupil = np.array([face_landmarks[473].x * self.w, face_landmarks[473].y * self.h])
-
-            # Kąty patrzenia
-            angle_x_left, angle_y_left = self.gaze_angles(left_eye_center, left_pupil, lx2 - lx1, ly2 - ly1)
-            angle_x_right, angle_y_right = self.gaze_angles(right_eye_center, right_pupil, rx2 - rx1, ry2 - ry1)
-            avg_angle_x = (angle_x_left + angle_x_right) / 2
-            avg_angle_y = (angle_y_left + angle_y_right) / 2
-
-            # Czy patrzy w ekran
-            left_dx = (left_pupil[0] - left_eye_center[0]) / (lx2 - lx1)
-            right_dx = (right_pupil[0] - right_eye_center[0]) / (rx2 - rx1)
-            avg_dx = (left_dx + right_dx) / 2
-
-            left_dy = (left_pupil[1] - left_eye_center[1]) / (ly2 - ly1)
-            right_dy = (right_pupil[1] - right_eye_center[1]) / (ry2 - ry1)
-            avg_dy = (left_dy + right_dy) / 2
-
-            looking_at_screen = abs(avg_dx) < 0.15 and abs(avg_dy) < 0.15
+            # Czy patrzy w ekran (prosty próg)
+            looking_at_screen = abs(yaw) < 10 and abs(pitch) < 10
             if looking_at_screen:
                 self.last_focus_time = time.time()
             else:
@@ -93,20 +75,20 @@ class EyeTracker:
                     looking_at_screen = False
 
             if show_frame:
+                frame = self.draw_face_mesh(frame, face_landmarks)
+                state = "Patrzysz 👀" if looking_at_screen else "Nie patrzysz 👁️"
                 color = (0, 255, 0) if looking_at_screen else (0, 0, 255)
-                cv2.rectangle(frame, (int(lx1), int(ly1)), (int(lx2), int(ly2)), color, 1)
-                cv2.rectangle(frame, (int(rx1), int(ry1)), (int(rx2), int(ry2)), color, 1)
-                cv2.circle(frame, tuple(left_pupil.astype(int)), 2, (255, 0, 0), -1)
-                cv2.circle(frame, tuple(right_pupil.astype(int)), 2, (255, 0, 0), -1)
-                cv2.putText(frame, f"X:{avg_angle_x:.1f} Y:{avg_angle_y:.1f}", (30, 50),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+                cv2.putText(frame, f"Yaw: {yaw:.1f}°  Pitch: {pitch:.1f}°", (20, 40),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2)
+                cv2.putText(frame, state, (20, 80),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
 
         if show_frame:
-            cv2.imshow("Eye Tracker", frame)
+            cv2.imshow("Face Angle Mesh Tracker", frame)
             cv2.waitKey(1)
 
         if looking_at_screen is not None:
-            return looking_at_screen, avg_angle_x, avg_angle_y
+            return looking_at_screen, yaw, pitch
         return None
 
     def release(self):
@@ -115,63 +97,43 @@ class EyeTracker:
 
 
 class EyeMonitorWorker(QThread):
-    """
-    Wątek roboczy do obsługi EyeTracker (OpenCV), aby nie blokować UI.
-    """
+    """Wątek roboczy, który używa FaceAngleTracker w tle (dla PyQt GUI)."""
     gaze_detected_signal = pyqtSignal(bool, float, float)
 
-    def __init__(self, tracker_instance, parent=None, debounce_time=0.5):
+    def __init__(self, tracker_instance, parent=None):
         super().__init__(parent)
         self.running = True
         self.tracker = tracker_instance
         self.check_interval_ms = 100
 
-        # Histereza czasowa (debouncing)
-        self.debounce_time = debounce_time  # Czas w sekundach (domyślnie 1.5s)
-        self.last_state_change_time = time.time()
-        self.current_state = None  # Aktualny "oficjalny" stan
-        self.pending_state = None  # Stan który czeka na potwierdzenie
-        self.pending_state_start = None  # Kiedy rozpoczął się pending state
-
     def run(self):
-        """Główna pętla wątku monitorującego z debouncing."""
         while self.running:
             start_time = time.time()
 
-            # 1. Wywołanie metody śledzenia wzroku
-            result = self.tracker.get_gaze(show_frame=False)
-
+            result = self.tracker.get_gaze(show_frame=True)
             if result:
-                looking, x, y = result
-                current_time = time.time()
+                looking, yaw, pitch = result
+                self.gaze_detected_signal.emit(looking, yaw, pitch)
 
-                if self.current_state is None:
-                    self.current_state = looking
-                    self.gaze_detected_signal.emit(looking, x, y)
-
-                elif looking != self.current_state:
-                    if self.pending_state != looking:
-                        self.pending_state = looking
-                        self.pending_state_start = current_time
-
-                    elif current_time - self.pending_state_start >= self.debounce_time:
-                        self.current_state = looking
-                        self.gaze_detected_signal.emit(looking, x, y)
-                        self.pending_state = None
-                        self.pending_state_start = None
-
-                else:
-                    if self.pending_state is not None:
-                        self.pending_state = None
-                        self.pending_state_start = None
-
-            elapsed_time = time.time() - start_time
-            sleep_time = (self.check_interval_ms / 1000) - elapsed_time
+            elapsed = time.time() - start_time
+            sleep_time = (self.check_interval_ms / 1000) - elapsed
             if sleep_time > 0:
                 time.sleep(sleep_time)
 
     def stop(self):
-        """Bezpieczne zatrzymanie wątku."""
         self.running = False
         self.wait()
         print("Eye Monitor: Zatrzymano wątek roboczy.")
+
+
+if __name__ == "__main__":
+    tracker = FaceAngleTracker()
+    try:
+        while True:
+            result = tracker.get_gaze(show_frame=True)
+            if result:
+                looking, yaw, pitch = result
+                print(f"Patrzy w ekran: {looking}, Yaw: {yaw:.1f}°, Pitch: {pitch:.1f}°")
+            time.sleep(0.3)
+    except KeyboardInterrupt:
+        tracker.release()
