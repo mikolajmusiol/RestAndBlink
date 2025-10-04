@@ -1,9 +1,14 @@
 # ui/enhanced_wellness_window.py
-
-from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
-                            QLabel, QPushButton, QStackedWidget, QFrame, QGridLayout,
-                            QScrollArea)
-from PyQt5.QtCore import Qt, pyqtSignal
+import logging
+import os
+LOG_PATH = os.path.join(os.path.dirname(__file__), "camera_debug.log")
+logging.basicConfig(filename=LOG_PATH, level=logging.DEBUG,
+                    format="%(asctime)s %(levelname)s %(message)s")
+logging.getLogger().addHandler(logging.StreamHandler())
+from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+                             QLabel, QPushButton, QStackedWidget, QFrame, QGridLayout,
+                             QScrollArea, QProgressBar, QListWidget, QListWidgetItem)
+from PyQt5.QtCore import Qt, pyqtSignal, QTimer
 from PyQt5.QtGui import QFont, QPalette, QColor
 import sqlite3
 import os
@@ -11,50 +16,61 @@ import json
 from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
-
+import cv2
+from screeninfo import get_monitors
 # Import matplotlib for charts
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-
+from PyQt5.QtGui import QImage, QPixmap, QFont
+try:
+    import mediapipe as mp
+    MP_AVAILABLE = True
+    mp_face_mesh = mp.solutions.face_mesh
+except Exception:
+    MP_AVAILABLE = False
 
 class EnhancedWellnessWindow(QMainWindow):
     """Enhanced wellness window with integrated charts."""
-    
+
     def __init__(self, user_id=1):
         super().__init__()
         self.user_id = user_id
         self.db_path = "user_data.db"
         self.current_section = "main"
         self.current_stats_period = "daily"
-        
+
+        self.setWindowTitle("Rest&Blink - Menu Główne")
+        self.setGeometry(100, 100, 1600, 1000)
+
+
         self.setWindowTitle("Rest&Blink - Enhanced Wellness Dashboard")
-        
+
         # Set responsive window size based on screen
         from PyQt5.QtWidgets import QDesktopWidget
         desktop = QDesktopWidget()
         screen_rect = desktop.screenGeometry()
-        
+
         # Use 85% of screen width and 80% of screen height
         window_width = int(screen_rect.width() * 0.85)
         window_height = int(screen_rect.height() * 0.80)
-        
+
         # Minimum and maximum sizes
         window_width = max(1200, min(2400, window_width))
         window_height = max(800, min(1600, window_height))
-        
+
         self.setGeometry(100, 100, window_width, window_height)
         self.setMinimumSize(1000, 700)  # Minimum usable size
-        
+
         # Apply dark wellness theme
         self.apply_wellness_theme()
-        
+
         # Get user data
         self.user_data = self.get_user_data()
-        
+
         # Setup UI
         self.setup_ui()
-    
+
     def resizeEvent(self, event):
         """Handle window resize to update responsive layouts."""
         super().resizeEvent(event)
@@ -62,7 +78,7 @@ class EnhancedWellnessWindow(QMainWindow):
         if hasattr(self, 'achievements_layout') and self.current_section == "achievements":
             self.rebuild_achievements_grid()
         # Stats section now uses fixed layout - no rebuild needed
-    
+
     def rebuild_achievements_grid(self):
         """Rebuild achievements grid with new column count."""
         # Clear existing grid
@@ -70,10 +86,10 @@ class EnhancedWellnessWindow(QMainWindow):
             child = self.achievements_layout.takeAt(0)
             if child.widget():
                 child.widget().deleteLater()
-        
+
         # Recreate grid with new dimensions
         self.create_responsive_achievements_grid()
-        
+
     def apply_wellness_theme(self):
         """Apply dark bio-hacking wellness theme."""
         self.setStyleSheet("""
@@ -184,27 +200,29 @@ class EnhancedWellnessWindow(QMainWindow):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
         
-        # Top header section with stats (always visible)
+        # Top header section
         self.create_header(main_layout)
         
-        # Navigation section under header (always visible)
-        self.create_fixed_navigation(main_layout)
+        # Navigation section
+        self.create_navigation(main_layout)
         
-        # Separator line under navigation
-        self.create_navigation_separator(main_layout)
+        # Separator line (20% from top)
+        separator = QFrame()
+        separator.setFrameShape(QFrame.HLine)
+        separator.setStyleSheet("background-color: #404448; border: none; height: 2px;")
+        main_layout.addWidget(separator)
         
         # Content area
         self.create_content_area(main_layout)
     
     def create_header(self, parent_layout):
-        """Create the top header with logo, user info and centered quick stats."""
+        """Create the top header with logo and user info."""
         header_widget = QWidget()
-        header_widget.setFixedHeight(90)  # Normal height for smaller cards
-        header_widget.setStyleSheet("background-color: #1a1d1f;")
+        header_widget.setFixedHeight(80)
+        header_widget.setStyleSheet("background-color: #1a1d1f; border-bottom: 1px solid #404448;")
         
         header_layout = QHBoxLayout(header_widget)
-        header_layout.setContentsMargins(30, 10, 30, 10)
-        header_layout.setSpacing(20)
+        header_layout.setContentsMargins(30, 20, 30, 20)
         
         # Left side - Logo
         logo_label = QLabel("Rest&Blink")
@@ -214,24 +232,24 @@ class EnhancedWellnessWindow(QMainWindow):
         
         # Left spacer to center the stats
         header_layout.addStretch(1)
-        
+
         # Middle - Centered Quick stats cards
         quick_stats_widget = QWidget()
         quick_stats_layout = QHBoxLayout(quick_stats_widget)
         quick_stats_layout.setContentsMargins(0, 0, 0, 0)
         quick_stats_layout.setSpacing(15)
-        
+
         # Today's sessions card
         today_card = self.create_quick_stat_card("Today's Sessions", "8", "#7cb9e8")
         current_streak_card = self.create_quick_stat_card("Current Streak", f"{self.user_data.get('level', 1)} days", "#90e0ef")
         total_time_card = self.create_quick_stat_card("Total Time", "12h 15m", "#a8dadc")
-        
+
         quick_stats_layout.addWidget(today_card)
         quick_stats_layout.addWidget(current_streak_card)
         quick_stats_layout.addWidget(total_time_card)
-        
+
         header_layout.addWidget(quick_stats_widget)
-        
+
         # Right spacer to center the stats
         header_layout.addStretch(1)
         
@@ -270,9 +288,9 @@ class EnhancedWellnessWindow(QMainWindow):
         nav_layout.setContentsMargins(30, 15, 30, 15)
         nav_layout.setSpacing(20)
         
-        # Add spacer to center navigation
+        # Add spacer
         nav_layout.addStretch()
-        
+
         # Navigation buttons
         self.nav_buttons = {}
         nav_items = [
@@ -281,20 +299,20 @@ class EnhancedWellnessWindow(QMainWindow):
             ("configure", "Configure"),
             ("achievements", "Achievements")
         ]
-        
+
         for nav_id, nav_text in nav_items:
             btn = QPushButton(nav_text)
             btn.setMinimumSize(120, 40)
             btn.clicked.connect(lambda checked, nav_id=nav_id: self.switch_section(nav_id))
-            
+
             self.nav_buttons[nav_id] = btn
             nav_layout.addWidget(btn)
         
-        # Add spacer to center navigation
+        # Add spacer
         nav_layout.addStretch()
-        
+
         parent_layout.addWidget(nav_widget)
-    
+
     def create_navigation_separator(self, parent_layout):
         """Create a separator line under navigation."""
         # Small spacing
@@ -302,46 +320,406 @@ class EnhancedWellnessWindow(QMainWindow):
         spacer_top.setFixedHeight(10)
         spacer_top.setStyleSheet("background-color: #1a1d1f;")
         parent_layout.addWidget(spacer_top)
-        
+
         # Separator line
         separator = QFrame()
         separator.setFixedHeight(2)
         separator.setStyleSheet("background-color: #404448; border: none;")
         parent_layout.addWidget(separator)
-        
+
         # Small spacing after
         spacer_bottom = QWidget()
         spacer_bottom.setFixedHeight(10)
         spacer_bottom.setStyleSheet("background-color: #1a1d1f;")
         parent_layout.addWidget(spacer_bottom)
-    
+
     def create_content_area(self, parent_layout):
         """Create the main content area."""
         self.content_stack = QStackedWidget()
-        
+
         # Main page
         main_page = self.create_main_page()
-        
+
         # Stats page
         stats_page = self.create_stats_page()
-        
+
         # Configure page (placeholder)
-        configure_page = self.create_placeholder_page("Configuration", "Settings and preferences coming soon")
-        
-        # Achievements page
-        achievements_page = self.create_achievements_page()
-        
+        configure_page = self.create_config_page("Konfiguracja Kamery", "Panel umożliwiający konfigurację kamery. Prawidłowo skonfigurowana kamera umożliwa detekcję aktywności na wielu monitorach.")
+
+        # Achievements page (placeholder)
+        achievements_page = self.create_placeholder_page("Osiągnięcia", "Osiągnięcia")
+
         # Add pages to stack
         self.content_stack.addWidget(main_page)        # index 0
         self.content_stack.addWidget(stats_page)       # index 1
         self.content_stack.addWidget(configure_page)   # index 2
         self.content_stack.addWidget(achievements_page) # index 3
-        
+
         parent_layout.addWidget(self.content_stack)
-        
-        # Start with main section (which is now empty)
-        self.switch_section("main")
-    
+
+        # Start with stats section
+        self.switch_section("stats")
+
+    def create_config_page(self, title, description, cursor=None, conn=None):
+        """
+        Ekran konfiguracji kamery z zapisem pozycji oczu + orientacji głowy (yaw,pitch,roll)
+        dla każdego monitora. Działa wewnątrz jednego taba (bez cv2.imshow()).
+        """
+
+        page = QWidget()
+        page.setStyleSheet("background-color: #1a1d1f;")
+        layout = QVBoxLayout(page)
+
+        title_label = QLabel(title)
+        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setFont(QFont("Segoe UI", 24))
+        title_label.setStyleSheet("color: #e8e9ea; margin: 50px;")
+        desc_label = QLabel(description)
+        desc_label.setAlignment(Qt.AlignCenter)
+        desc_label.setFont(QFont("Segoe UI", 14))
+        desc_label.setStyleSheet("color: #a8b5c1; margin-bottom: 30px;")
+        layout.addWidget(title_label)
+        layout.addWidget(desc_label)
+
+        camera_label = QLabel()
+        camera_label.setAlignment(Qt.AlignCenter)
+        camera_label.setFixedSize(640, 480)
+        camera_label.setStyleSheet("border: 2px solid #2c3e50; border-radius: 10px; background: black;")
+        layout.addWidget(camera_label, alignment=Qt.AlignCenter)
+
+        status_label = QLabel("Kliknij przycisk, aby rozpocząć konfigurację kamery.")
+        status_label.setAlignment(Qt.AlignCenter)
+        status_label.setStyleSheet("color: #f0f0f0; font-size: 16px; margin: 1px;")
+        layout.addWidget(status_label)
+
+        eyes_list = QListWidget()
+        eyes_list.setStyleSheet("color: #e8e9ea; background: #111214; border: 1px solid #2c3e50;")
+        eyes_list.setFixedHeight(160)
+        layout.addWidget(eyes_list)
+
+        progress = QProgressBar()
+        progress.setValue(0)
+        progress.setStyleSheet(
+            "QProgressBar{background:#2c3e50;color:white;border-radius:5px;}QProgressBar::chunk{background:#1abc9c;}")
+        layout.addWidget(progress)
+
+        calibrate_btn = QPushButton("Rozpocznij konfigurację kamery")
+        calibrate_btn.setStyleSheet("background-color:#1abc9c;color:white;padding:10px;border-radius:5px;")
+        layout.addWidget(calibrate_btn, alignment=Qt.AlignCenter)
+        layout.addStretch()
+
+        # stan i zmienne pomocnicze
+        cap = {"obj": None}
+        timer = QTimer()
+        try:
+            monitors = get_monitors()
+        except Exception:
+            logging.exception("get_monitors failed")
+            monitors = []
+        num_monitors = max(1, len(monitors))
+        current_index = {"i": 0}
+        timer_connected = {"v": False}
+        calibration_active = {"v": False}
+
+        calibration_templates = []
+
+        # przygotowanie Haar fallback jeśli brak MediaPipe
+        eye_cascade = None
+        try:
+            eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_eye.xml")
+            if eye_cascade.empty():
+                eye_cascade = None
+        except Exception:
+            eye_cascade = None
+
+        MP_AVAILABLE = False
+        face_mesh = None
+        try:
+            import mediapipe as mp
+            MP_AVAILABLE = True
+            mp_face_mesh = mp.solutions.face_mesh
+            face_mesh = mp_face_mesh.FaceMesh(static_image_mode=False, max_num_faces=1,
+                                              refine_landmarks=True, min_detection_confidence=0.5,
+                                              min_tracking_confidence=0.5)
+        except Exception:
+            MP_AVAILABLE = False
+            face_mesh = None
+            logging.info("MediaPipe FaceMesh not available; using Haar fallback if possible.")
+
+        # --- helper: estymacja head pose ---
+        def estimate_head_pose(landmarks, image_shape):
+            try:
+                h, w = image_shape[0], image_shape[1]
+                idx_map = {"nose": 1, "l_eye": 33, "r_eye": 263, "l_mouth": 61, "r_mouth": 291, "chin": 199}
+                image_points = np.array([
+                    (landmarks[idx_map["nose"]].x * w, landmarks[idx_map["nose"]].y * h),
+                    (landmarks[idx_map["l_eye"]].x * w, landmarks[idx_map["l_eye"]].y * h),
+                    (landmarks[idx_map["r_eye"]].x * w, landmarks[idx_map["r_eye"]].y * h),
+                    (landmarks[idx_map["l_mouth"]].x * w, landmarks[idx_map["l_mouth"]].y * h),
+                    (landmarks[idx_map["r_mouth"]].x * w, landmarks[idx_map["r_mouth"]].y * h),
+                    (landmarks[idx_map["chin"]].x * w, landmarks[idx_map["chin"]].y * h)
+                ], dtype=np.float64)
+
+                model_points = np.array([
+                    (0.0, 0.0, 0.0),
+                    (-60.0, -40.0, -30.0),
+                    (60.0, -40.0, -30.0),
+                    (-50.0, 40.0, -60.0),
+                    (50.0, 40.0, -60.0),
+                    (0.0, 110.0, -20.0)
+                ], dtype=np.float64)
+
+                focal_length = w
+                center = (w / 2, h / 2)
+                camera_matrix = np.array([[focal_length, 0, center[0]],
+                                          [0, focal_length, center[1]],
+                                          [0, 0, 1]], dtype=np.float64)
+                dist_coeffs = np.zeros((4, 1))
+
+                success, rotation_vector, translation_vector = cv2.solvePnP(
+                    model_points, image_points, camera_matrix, dist_coeffs, flags=cv2.SOLVEPNP_ITERATIVE
+                )
+                if not success:
+                    return False, (0.0, 0.0, 0.0)
+
+                rmat, _ = cv2.Rodrigues(rotation_vector)
+                sy = np.sqrt(rmat[0, 0] ** 2 + rmat[1, 0] ** 2)
+                singular = sy < 1e-6
+                if not singular:
+                    x = np.arctan2(rmat[2, 1], rmat[2, 2])
+                    y = np.arctan2(-rmat[2, 0], sy)
+                    z = np.arctan2(rmat[1, 0], rmat[0, 0])
+                else:
+                    x = np.arctan2(-rmat[1, 2], rmat[1, 1])
+                    y = np.arctan2(-rmat[2, 0], sy)
+                    z = 0.0
+                pitch = np.degrees(x)
+                yaw = np.degrees(y)
+                roll = np.degrees(z)
+                return True, (yaw, pitch, roll)
+            except Exception:
+                logging.exception("estimate_head_pose failed")
+                return False, (0.0, 0.0, 0.0)
+
+        # --- detekcja oczu ---
+        def detect_eyes_in_frame(frame):
+            try:
+                h, w = frame.shape[:2]
+                if MP_AVAILABLE and face_mesh is not None:
+                    img_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    results = face_mesh.process(img_rgb)
+                    if results.multi_face_landmarks:
+                        lm = results.multi_face_landmarks[0].landmark
+                        left_idxs = [33, 133, 160, 159, 158, 157, 173, 246]
+                        right_idxs = [362, 263, 387, 386, 385, 384, 398, 466]
+
+                        def avg_points(idxs):
+                            xs = [lm[i].x for i in idxs if i < len(lm)]
+                            ys = [lm[i].y for i in idxs if i < len(lm)]
+                            if not xs:
+                                return None
+                            return (int(sum(xs) / len(xs) * w), int(sum(ys) / len(ys) * h))
+
+                        left = avg_points(left_idxs)
+                        right = avg_points(right_idxs)
+                        return left, right, lm
+                if eye_cascade is not None:
+                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                    eyes = eye_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=3, minSize=(30, 30))
+                    eyes = sorted(eyes, key=lambda e: e[0])
+                    if len(eyes) >= 2:
+                        l = eyes[0]
+                        r = eyes[1]
+                        left_center = (int(l[0] + l[2] / 2), int(l[1] + l[3] / 2))
+                        right_center = (int(r[0] + r[2] / 2), int(r[1] + r[3] / 2))
+                        return left_center, right_center, None
+                    elif len(eyes) == 1:
+                        e = eyes[0]
+                        center = (int(e[0] + e[2] / 2), int(e[1] + e[3] / 2))
+                        return center, None, None
+            except Exception:
+                logging.exception("detect_eyes_in_frame exception")
+            return None, None, None
+
+        # --- update_frame ---
+        def update_frame():
+            try:
+                if cap["obj"] is None:
+                    return
+                ret, frame = cap["obj"].read()
+                if not ret or frame is None:
+                    return
+
+                left, right, lm = detect_eyes_in_frame(frame)
+                head = None
+                if MP_AVAILABLE and lm is not None:
+                    ok, head = estimate_head_pose(lm, frame.shape)
+                    if ok:
+                        camera_label._last_head = head
+                    else:
+                        camera_label._last_head = None
+                else:
+                    camera_label._last_head = None
+
+                vis = frame.copy()
+                if left:
+                    cv2.circle(vis, left, 4, (0, 255, 0), -1)
+                if right:
+                    cv2.circle(vis, right, 4, (0, 255, 0), -1)
+                if getattr(camera_label, "_last_head", None):
+                    yv, pv, rv = camera_label._last_head
+                    text = f"yaw:{yv:.1f} pitch:{pv:.1f}"
+                    cv2.putText(vis, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (200, 200, 50), 2)
+
+                frame_rgb = cv2.cvtColor(vis, cv2.COLOR_BGR2RGB)
+                h, w, ch = frame_rgb.shape
+                bytes_per_line = ch * w
+                qimg = QImage(frame_rgb.data, w, h, bytes_per_line, QImage.Format_RGB888)
+                pix = QPixmap.fromImage(qimg).scaled(camera_label.width(), camera_label.height(),
+                                                     Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                camera_label.setPixmap(pix)
+
+                camera_label._last_left = left
+                camera_label._last_right = right
+
+            except Exception:
+                logging.exception("Exception in update_frame")
+                safe_release()
+                status_label.setText("❌ Błąd przetwarzania kamery. Sprawdź logi.")
+                calibrate_btn.setEnabled(True)
+                calibration_active["v"] = False
+
+        import datetime
+
+        # --- record + zapis do bazy ---
+        def record_current_monitor_and_continue():
+            try:
+                left = getattr(camera_label, "_last_left", None)
+                right = getattr(camera_label, "_last_right", None)
+                head = getattr(camera_label, "_last_head", None)
+                mi = current_index['i'] + 1
+
+                logging.info(f"Recorded monitor {mi}: left={left}, right={right}, head={head}")
+                calibration_templates.append({"monitor": mi, "left": left, "right": right, "head": head})
+
+                item_text = f"Ekran {mi}: head={head}, left={left}, right={right}"
+                eyes_list.addItem(QListWidgetItem(item_text))
+                status_label.setText(f"Zarejestrowano pozycję oczu dla ekranu {mi}.")
+
+                # zapis do bazy danych
+                if cursor is not None and conn is not None:
+                    head_yaw, head_pitch, head_roll = head if head else (None, None, None)
+                    left_x, left_y = left if left else (None, None)
+                    right_x, right_y = right if right else (None, None)
+                    created_at = datetime.datetime.now().isoformat(timespec='seconds')
+
+                    cursor.execute('''
+                        INSERT INTO calibration_templates 
+                        (monitor, head_yaw, head_pitch, head_roll, left_x, left_y, right_x, right_y, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (mi, head_yaw, head_pitch, head_roll, left_x, left_y, right_x, right_y, created_at))
+                    conn.commit()
+
+            except Exception:
+                logging.exception("Error saving eye data")
+                status_label.setText("❌ Błąd zapisu pozycji oczu.")
+
+            current_index['i'] += 1
+            progress.setValue(int(current_index['i'] / num_monitors * 100))
+            QTimer.singleShot(800, next_monitor_step)
+
+        def next_monitor_step():
+            try:
+                total = num_monitors
+                if current_index['i'] >= total:
+                    safe_release()
+                    status_label.setText("✅ Konfiguracja zakończona.")
+                    progress.setValue(100)
+                    calibrate_btn.setEnabled(True)
+                    calibration_active['v'] = False
+                    return
+                mon = monitors[current_index['i']] if monitors else None
+                if mon:
+                    status_label.setText(
+                        f"📺 Ekran {current_index['i'] + 1}/{total} — ({mon.width}x{mon.height}). Popatrz teraz.")
+                else:
+                    status_label.setText(f"Ekran {current_index['i'] + 1}/{total}. Popatrz teraz.")
+                QTimer.singleShot(2000, record_current_monitor_and_continue)
+            except Exception:
+                logging.exception("next_monitor_step error")
+                safe_release()
+                status_label.setText("❌ Błąd w procesie konfiguracji.")
+                calibrate_btn.setEnabled(True)
+                calibration_active['v'] = False
+
+        def start_calibration():
+            if calibration_active['v']:
+                return
+            calibration_active['v'] = True
+            calibrate_btn.setEnabled(False)
+            current_index['i'] = 0
+            progress.setValue(0)
+            eyes_list.clear()
+            calibration_templates.clear()
+            status_label.setText("Inicjalizuję kamerę...")
+            logging.info("Start calibration")
+            try:
+                cap["obj"] = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+                if not (cap["obj"] and cap["obj"].isOpened()):
+                    status_label.setText("❌ Nie udało się otworzyć kamery.")
+                    logging.error("camera open failed")
+                    cap["obj"] = None
+                    calibrate_btn.setEnabled(True)
+                    calibration_active['v'] = False
+                    return
+                if not timer_connected["v"]:
+                    timer.timeout.connect(update_frame)
+                    timer_connected["v"] = True
+                timer.start(30)
+                QTimer.singleShot(800, next_monitor_step)
+            except Exception:
+                logging.exception("start_calibration failed")
+                status_label.setText("❌ Błąd inicjalizacji kamery.")
+                safe_release()
+                calibrate_btn.setEnabled(True)
+                calibration_active['v'] = False
+
+        def stop_calibration_clean():
+            safe_release()
+            status_label.setText("Kalibracja przerwana.")
+            calibrate_btn.setEnabled(True)
+            calibration_active['v'] = False
+
+        def safe_release():
+            try:
+                if cap["obj"] is not None:
+                    try:
+                        cap["obj"].release()
+                    except Exception:
+                        logging.exception("release failed")
+                    cap["obj"] = None
+                if timer.isActive():
+                    timer.stop()
+                if timer_connected["v"]:
+                    try:
+                        timer.timeout.disconnect(update_frame)
+                    except Exception:
+                        pass
+                    timer_connected["v"] = False
+            except Exception:
+                logging.exception("safe_release exception")
+            try:
+                if face_mesh is not None:
+                    try:
+                        face_mesh.close()
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+        calibrate_btn.clicked.connect(start_calibration)
+        return page
+
     def create_main_page(self):
         """Create empty main page (content moved to header)."""
         main_page = QWidget()
@@ -376,326 +754,22 @@ class EnhancedWellnessWindow(QMainWindow):
         
         return page
     
-    def create_achievements_page(self):
-        """Create the achievements page with responsive scrollable grid."""
-        page = QWidget()
-        page.setStyleSheet("background-color: #1a1d1f;")
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(30, 30, 30, 30)
-        
-        # Create scroll area
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        scroll_area.setStyleSheet("""
-            QScrollArea {
-                background-color: #1a1d1f;
-                border: none;
-            }
-            QScrollBar:vertical {
-                background-color: #2c3034;
-                width: 12px;
-                border-radius: 6px;
-            }
-            QScrollBar::handle:vertical {
-                background-color: #404448;
-                border-radius: 6px;
-                min-height: 20px;
-            }
-            QScrollBar::handle:vertical:hover {
-                background-color: #5a6269;
-            }
-        """)
-        
-        # Create content widget for scroll area
-        content_widget = QWidget()
-        self.achievements_layout = QVBoxLayout(content_widget)
-        self.achievements_layout.setContentsMargins(0, 0, 0, 0)
-        
-        # Create responsive achievements grid
-        self.create_responsive_achievements_grid()
-        
-        scroll_area.setWidget(content_widget)
-        layout.addWidget(scroll_area)
-        
-        return page
-    
-    def create_responsive_achievements_grid(self):
-        """Create a responsive grid that adapts to screen width."""
-        # Get achievements data
-        earned_achievements, all_achievements = self.get_achievements_data()
-        
-        # Sort achievements: earned first, then unearned
-        sorted_achievements = []
-        # Add earned achievements first
-        for achievement in all_achievements:
-            if achievement['id'] in [ea['id'] for ea in earned_achievements]:
-                sorted_achievements.append({**achievement, 'earned': True})
-        # Then add unearned achievements
-        for achievement in all_achievements:
-            if achievement['id'] not in [ea['id'] for ea in earned_achievements]:
-                sorted_achievements.append({**achievement, 'earned': False})
-        
-        # Calculate dynamic columns based on window width
-        # More responsive - minimum 2 icons per row for narrow screens
-        available_width = self.width() - 120  # Account for margins and scrollbar
-        card_width_with_spacing = 220  # Adjusted for new card sizes (200px avg + 20px spacing)
-        min_columns = 2  # Changed from 3 to 2 for better mobile/narrow screen support
-        max_columns = 10  # Increased max for ultra-wide screens
-        columns = max(min_columns, min(max_columns, available_width // card_width_with_spacing))
-        
-        # Create dynamic grid layout for achievements
-        grid_layout = QGridLayout()
-        grid_layout.setHorizontalSpacing(20)
-        grid_layout.setVerticalSpacing(20)
-        
-        # Add achievement cards in responsive grid
-        row = 0
-        col = 0
-        for achievement in sorted_achievements:
-            card = self.create_achievement_card(achievement)
-            grid_layout.addWidget(card, row, col, Qt.AlignCenter)
-            
-            col += 1
-            if col >= columns:
-                col = 0
-                row += 1
-        
-        # Create widget to hold the grid
-        grid_widget = QWidget()
-        grid_widget.setLayout(grid_layout)
-        
-        self.achievements_layout.addWidget(grid_widget)
-        self.achievements_layout.addStretch()
-    
-    def create_achievement_card(self, achievement):
-        """Create a single achievement card."""
-        card = QFrame()
-        card.setMinimumSize(180, 130)  # Smaller minimum for narrow screens
-        card.setMaximumSize(320, 200)  # Larger maximum for wide screens
-        card.setFrameStyle(QFrame.NoFrame)  # Remove frame style
-        
-        # Simple style without borders/ovals
-        if achievement['earned']:
-            card.setStyleSheet("""
-                QFrame {
-                    background-color: #2a2d30;
-                    border: none;
-                    border-radius: 8px;
-                }
-                QFrame:hover {
-                    background-color: #323639;
-                }
-            """)
-        else:
-            card.setStyleSheet("""
-                QFrame {
-                    background-color: #1e2125;
-                    border: none;
-                    border-radius: 8px;
-                }
-                QFrame:hover {
-                    background-color: #252932;
-                }
-            """)
-        
-        layout = QVBoxLayout(card)
-        layout.setContentsMargins(10, 15, 10, 10)
-        layout.setSpacing(8)
-        layout.setAlignment(Qt.AlignCenter)
-        
-        # Achievement icon - use reliable symbols instead of problematic emoji
-        original_emoji = achievement['badge_icon']
-        
-        # Complete mapping to Unicode symbols that work reliably on Linux
-        symbol_mapping = {
-            '🎯': '●',     # Target -> Bullet
-            '🚀': '▲',     # Rocket -> Triangle
-            '💪': '♦',     # Muscle -> Diamond
-            '⭐': '★',     # Star -> Star (should work)
-            '🏃': '►',     # Runner -> Play symbol
-            '👑': '♔',     # Crown -> King
-            '🔸': '◇',     # Orange diamond -> White diamond
-            '🔹': '◆',     # Blue diamond -> Black diamond
-            '🔶': '◆',     # Large orange diamond -> Black diamond
-            '🔷': '◇',     # Large blue diamond -> White diamond
-            '⏰': '⊙',     # Alarm clock -> Circled dot
-            '⏳': '⧗',     # Hourglass -> Hourglass symbol
-        }
-        
-        # Use symbol mapping - fallback to first character if not found
-        display_icon = symbol_mapping.get(original_emoji, original_emoji[0] if original_emoji else '•')
-        
-        icon_label = QLabel(display_icon)
-        
-        # Dynamic font size
-        if self.width() > 1400:
-            icon_font_size = 56
-        elif self.width() > 1000:
-            icon_font_size = 52
-        else:
-            icon_font_size = 48
-        
-        # Use standard font that supports Unicode symbols
-        symbol_font = QFont()
-        symbol_font.setPointSize(icon_font_size)
-        symbol_font.setFamily("DejaVu Sans")  # Reliable font for symbols
-        symbol_font.setWeight(QFont.Bold)  # Make symbols more prominent
-        
-        icon_label.setFont(symbol_font)
-        icon_label.setAlignment(Qt.AlignCenter)
-        
-        # Enhanced styling with color coding for different rarities
-        rarity_colors = {
-            'common': '#9ca3af',
-            'uncommon': '#22c55e', 
-            'rare': '#3b82f6',
-            'epic': '#a855f7',
-            'legendary': '#f59e0b',
-            'mythic': '#ff1744'
-        }
-        
-        if not achievement['earned']:
-            # Gray out unearned achievements
-            icon_label.setStyleSheet("""
-                QLabel {
-                    color: #4a4d52;
-                    font-weight: bold;
-                    text-align: center;
-                    background: transparent;
-                }
-            """)
-        else:
-            # Color earned achievements by rarity
-            icon_color = rarity_colors.get(achievement['rarity'], '#ffffff')
-            icon_label.setStyleSheet(f"""
-                QLabel {{
-                    color: {icon_color};
-                    font-weight: bold;
-                    text-align: center;
-                    background: transparent;
-                }}
-            """)
-        
-        # Achievement name - shorter and cleaner
-        name_label = QLabel(achievement['name'])
-        name_label.setAlignment(Qt.AlignCenter)
-        name_label.setWordWrap(True)
-        name_label.setFont(QFont("Segoe UI", 12, QFont.Bold))
-        if achievement['earned']:
-            name_label.setStyleSheet("color: #ffffff; margin-top: 5px;")
-        else:
-            name_label.setStyleSheet("color: #8b9197; margin-top: 5px;")
-        
-        # Rarity indicator - smaller and more subtle
-        rarity_label = QLabel(achievement['rarity'].upper())
-        rarity_label.setAlignment(Qt.AlignCenter)
-        rarity_label.setFont(QFont("Segoe UI", 8, QFont.Bold))
-        
-        # Color code by rarity
-        rarity_colors = {
-            'common': '#9ca3af',
-            'uncommon': '#22c55e', 
-            'rare': '#3b82f6',
-            'epic': '#a855f7',
-            'legendary': '#f59e0b',
-            'mythic': '#ff1744'
-        }
-        rarity_color = rarity_colors.get(achievement['rarity'], '#9ca3af')
-        if not achievement['earned']:
-            rarity_color = '#5a6269'  # Gray out unearned
-        
-        rarity_label.setStyleSheet(f"color: {rarity_color}; margin-top: 3px;")
-        
-        layout.addWidget(icon_label)
-        layout.addWidget(name_label)
-        layout.addWidget(rarity_label)
-        
-        return card
-    
-    def get_achievements_data(self):
-        """Get achievements data from database."""
-        earned_achievements = []
-        all_achievements = []
-        
-        try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            
-            # Get earned achievements
-            cursor.execute("""
-                SELECT a.id, a.name, a.description, a.badge_icon, a.rarity, ua.earned_date
-                FROM Achievements a
-                JOIN UserAchievements ua ON a.id = ua.achievement_id
-                WHERE ua.user_id = ?
-                ORDER BY ua.earned_date DESC
-            """, (self.user_id,))
-            
-            for row in cursor.fetchall():
-                earned_achievements.append({
-                    'id': row[0],
-                    'name': row[1],
-                    'description': row[2],
-                    'badge_icon': row[3],
-                    'rarity': row[4],
-                    'earned_date': row[5]
-                })
-            
-            # Get all achievements
-            cursor.execute("""
-                SELECT id, name, description, badge_icon, rarity
-                FROM Achievements
-                WHERE is_active = 1
-                ORDER BY id
-            """)
-            
-            for row in cursor.fetchall():
-                all_achievements.append({
-                    'id': row[0],
-                    'name': row[1],
-                    'description': row[2],
-                    'badge_icon': row[3],
-                    'rarity': row[4]
-                })
-            
-            conn.close()
-            
-        except Exception as e:
-            print(f"Error fetching achievements data: {e}")
-        
-        return earned_achievements, all_achievements
-    
     def create_quick_stat_card(self, title, value, color):
         """Create a quick stat card without borders."""
         card = QFrame()
         card.setFrameStyle(QFrame.NoFrame)  # Remove frame
-        
+
         # Smaller, more reasonable size
         card.setFixedSize(180, 70)
         card.setMinimumSize(180, 70)
         
-        # Simple card style without borders
-        card.setStyleSheet("""
-            QFrame {
-                background-color: #232629;
-                border: none;
-                border-radius: 8px;
-                padding: 8px;
-            }
-            QFrame:hover {
-                background-color: #2a2d30;
-            }
-        """)
-        
-        # Use a simple vertical layout with tight spacing
         layout = QVBoxLayout(card)
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(2)
         
         # Title label - small and compact
         title_label = QLabel(title)
-        title_label.setFont(QFont("Segoe UI", 9, QFont.Medium))  
+        title_label.setFont(QFont("Segoe UI", 9, QFont.Medium))
         title_label.setStyleSheet(f"color: {color}; background: transparent; margin: 0px; padding: 0px;")
         title_label.setWordWrap(True)
         title_label.setAlignment(Qt.AlignCenter)
@@ -728,22 +802,21 @@ class EnhancedWellnessWindow(QMainWindow):
         header_container.setStyleSheet("border: none; background: transparent;")
         header_layout = QHBoxLayout(header_container)
         header_layout.setContentsMargins(0, 0, 0, 10)
-        
+
         # Add stretchers to center the header
         header_layout.addStretch()
-        
+
         stats_header = QLabel("Stats: Health & Wellness Analytics")
         stats_header.setFont(QFont("Segoe UI", 20, QFont.Medium))
         stats_header.setStyleSheet("color: #e8e9ea; border: none; background: transparent;")
         header_layout.addWidget(stats_header)
-        
+
         header_layout.addStretch()
-        
+
         stats_layout.addWidget(header_container)
         
         # Period selection buttons
         period_widget = QWidget()
-        period_widget.setStyleSheet("border: none; background: transparent;")
         period_layout = QHBoxLayout(period_widget)
         period_layout.setContentsMargins(0, 0, 0, 0)
         period_layout.setSpacing(15)
