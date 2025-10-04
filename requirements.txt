@@ -1,7 +1,8 @@
 # Główne biblioteki GUI i zarządzania aplikacją
 PyQt5==5.15.10              # Framework do tworzenia interfejsu użytkownika (GUI) i appletu
 
-opencv-python==4.9.0.80     # Biblioteka OpenCV do obsługi kamery i przetwarzania obrazu
-mediapipe==0.10.14          # Biblioteka Google do detekcji kluczowych punktów ciała (Pose Estimation)
-
 gTTS==2.5.4
+
+mediapipe==0.10.14
+opencv-python==4.12.0.88
+numpy==2.2.6
