@@ -1,44 +1,66 @@
+# ui/main_window.py (Zaktualizowany)
+
+from PyQt5.QtWidgets import QMainWindow, QTabWidget, QVBoxLayout, QWidget
+from PyQt5.QtGui import QIcon
+from PyQt5.QtCore import Qt, pyqtSignal
 import os
 
-from PyQt5.QtWidgets import QMainWindow, QVBoxLayout, QWidget, QLabel
-from PyQt5.QtCore import Qt, pyqtSignal  # Dodaj import pyqtSignal
-from PyQt5.QtGui import QIcon # NOWY IMPORT
+# Importujemy poszczególne zakładki
+from ui.tabs.main_tab import MainTab
+from ui.tabs.stats_tab import StatsTab
 
+
+# Tutaj możesz łatwo importować nowe zakładki!
 
 class SettingsStatsWindow(QMainWindow):
     """
-    Główne okno aplikacji do wyświetlania ustawień i statystyk gamifikacji.
+    Główne okno aplikacji oparte na QTabWidget.
     """
-    # Nowe sygnały emitowane przy otwieraniu/zamykaniu okna
     window_opened_signal = pyqtSignal()
     window_closed_signal = pyqtSignal()
 
     def __init__(self, icon_path):
         super().__init__()
         self.setWindowTitle("Break Reminder")
-        self.setGeometry(300, 300, 400, 300)
+        self.setGeometry(500, 500, 800, 500)
 
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
 
+        self.tab_widget = QTabWidget()
+        self.tab_widget.setTabPosition(QTabWidget.North)  # Zakładki na górze
+
+        self._load_tabs()  # Metoda odpowiedzialna za ładowanie wszystkich zakładek
+
         central_widget = QWidget()
-        self.setCentralWidget(central_widget)
         layout = QVBoxLayout(central_widget)
+        layout.addWidget(self.tab_widget)
+        self.setCentralWidget(central_widget)
 
-        title = QLabel("Witaj w aplikacji Break Reminder!")
-        title.setAlignment(Qt.AlignCenter)
-        description = QLabel("Tutaj znajdą się Twoje punkty, osiągnięcia i ustawienia przerw.")
+    def _load_tabs(self):
+        """Dynamicznie ładuje wszystkie zakładki do QTabWidget."""
 
-        layout.addWidget(title)
-        layout.addWidget(description)
+        # 1. Zakładka Głównego Timera i Kontroli
+        self.main_timer_tab = MainTab()
+        self.tab_widget.addTab(self.main_timer_tab, "Główny Timer")
+
+        # 2. Zakładka Statystyk i Gamifikacji
+        self.stats_tab = StatsTab()
+        self.tab_widget.addTab(self.stats_tab, "Statystyki i Punkty")
+
+        # 3. Przyszłe zakładki (np. Ustawienia, Ćwiczenia)
+        # self.tab_widget.addTab(NowaZakladka(), "Nowa Nazwa")
+
+        # W tym miejscu możesz również połączyć sygnały z zakładek do kontrolera
+        # self.main_timer_tab.start_timer_request.connect(...)
 
     def showEvent(self, event):
-        """Emituje sygnał po otwarciu okna (pokazaniu)."""
+        """Emituje sygnał po otwarciu okna."""
         super().showEvent(event)
-        self.window_opened_signal.emit()  # INFORMUJEMY: Okno się Otworzyło
+        self.window_opened_signal.emit()
 
     def closeEvent(self, event):
         """Ukrywa okno i emituje sygnał zamknięcia."""
         self.hide()
         event.ignore()
-        self.window_closed_signal.emit()  # INFORMUJEMY: Okno się Zamknęło
+        self.window_closed_signal.emit()
