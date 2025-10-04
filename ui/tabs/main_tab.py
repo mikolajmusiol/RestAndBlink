@@ -1,7 +1,7 @@
 # ui/tabs/main_timer_tab.py
 
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSizePolicy
-from PyQt5.QtCore import pyqtSignal, Qt, QTimer
+from PyQt5.QtCore import pyqtSignal, Qt, QTimer, QUrl
 from PyQt5.QtGui import QMovie
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent, QMediaPlaylist
 import os
