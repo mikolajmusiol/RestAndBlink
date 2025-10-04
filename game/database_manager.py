@@ -30,6 +30,22 @@ class DatabaseManager:
                         is_active BOOLEAN DEFAULT 1
                     )
                 ''')
+
+                cursor.execute('''
+                               CREATE TABLE IF NOT EXISTS calibration_templates (
+                                   id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                   monitor INTEGER NOT NULL,
+                                   head_yaw REAL,
+                                   head_pitch REAL,
+                                   head_roll REAL,
+                                   left_x INTEGER,
+                                   left_y INTEGER,
+                                   right_x INTEGER,
+                                   right_y INTEGER,
+                                   created_at TEXT NOT NULL
+                               )
+                           ''')
+
                 
                 # Create Sessions table for comprehensive exercise and health tracking
                 cursor.execute('''

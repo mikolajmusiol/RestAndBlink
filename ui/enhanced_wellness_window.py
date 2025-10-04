@@ -1,9 +1,14 @@
 # ui/enhanced_wellness_window.py
-
-from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
-                            QLabel, QPushButton, QStackedWidget, QFrame, QGridLayout,
-                            QScrollArea)
-from PyQt5.QtCore import Qt, pyqtSignal
+import logging
+import os
+LOG_PATH = os.path.join(os.path.dirname(__file__), "camera_debug.log")
+logging.basicConfig(filename=LOG_PATH, level=logging.DEBUG,
+                    format="%(asctime)s %(levelname)s %(message)s")
+logging.getLogger().addHandler(logging.StreamHandler())
+from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+                             QLabel, QPushButton, QStackedWidget, QFrame, QGridLayout,
+                             QScrollArea, QProgressBar, QListWidget, QListWidgetItem)
+from PyQt5.QtCore import Qt, pyqtSignal, QTimer
 from PyQt5.QtGui import QFont, QPalette, QColor
 import sqlite3
 import os
@@ -11,35 +16,42 @@ import json
 from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
-
+import cv2
+from screeninfo import get_monitors
 # Import matplotlib for charts
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-
+from PyQt5.QtGui import QImage, QPixmap, QFont
+try:
+    import mediapipe as mp
+    MP_AVAILABLE = True
+    mp_face_mesh = mp.solutions.face_mesh
+except Exception:
+    MP_AVAILABLE = False
 
 class EnhancedWellnessWindow(QMainWindow):
     """Enhanced wellness window with integrated charts."""
-    
+
     def __init__(self, user_id=1):
         super().__init__()
         self.user_id = user_id
         self.db_path = "user_data.db"
         self.current_section = "main"
         self.current_stats_period = "daily"
-        
-        self.setWindowTitle("Rest&Blink - Enhanced Wellness Dashboard")
+
+        self.setWindowTitle("Rest&Blink - Menu Główne")
         self.setGeometry(100, 100, 1600, 1000)
-        
+
         # Apply dark wellness theme
         self.apply_wellness_theme()
-        
+
         # Get user data
         self.user_data = self.get_user_data()
-        
+
         # Setup UI
         self.setup_ui()
-        
+
     def apply_wellness_theme(self):
         """Apply dark bio-hacking wellness theme."""
         self.setStyleSheet("""
@@ -100,21 +112,21 @@ class EnhancedWellnessWindow(QMainWindow):
                 background-color: #1a1d1f;
             }
         """)
-    
+
     def get_user_data(self):
         """Get user data from database."""
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
-            
+
             cursor.execute("""
                 SELECT first_name, last_name, level, total_points, total_sessions
                 FROM Users WHERE id = ?
             """, (self.user_id,))
-            
+
             result = cursor.fetchone()
             conn.close()
-            
+
             if result:
                 return {
                     'first_name': result[0],
@@ -140,87 +152,87 @@ class EnhancedWellnessWindow(QMainWindow):
                 'total_points': 0,
                 'total_sessions': 0
             }
-    
+
     def setup_ui(self):
         """Setup the main UI layout."""
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-        
+
         main_layout = QVBoxLayout(central_widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
-        
+
         # Top header section
         self.create_header(main_layout)
-        
+
         # Navigation section
         self.create_navigation(main_layout)
-        
+
         # Separator line (20% from top)
         separator = QFrame()
         separator.setFrameShape(QFrame.HLine)
         separator.setStyleSheet("background-color: #404448; border: none; height: 2px;")
         main_layout.addWidget(separator)
-        
+
         # Content area
         self.create_content_area(main_layout)
-    
+
     def create_header(self, parent_layout):
         """Create the top header with logo and user info."""
         header_widget = QWidget()
         header_widget.setFixedHeight(80)
         header_widget.setStyleSheet("background-color: #1a1d1f; border-bottom: 1px solid #404448;")
-        
+
         header_layout = QHBoxLayout(header_widget)
         header_layout.setContentsMargins(30, 20, 30, 20)
-        
+
         # Left side - Logo
         logo_label = QLabel("Rest&Blink")
         logo_label.setFont(QFont("Segoe UI", 24, QFont.Bold))
         logo_label.setStyleSheet("color: #7cb9e8; border: none;")
         header_layout.addWidget(logo_label)
-        
+
         # Spacer
         header_layout.addStretch()
-        
+
         # Right side - User info
         user_info_widget = QWidget()
         user_info_layout = QVBoxLayout(user_info_widget)
         user_info_layout.setContentsMargins(0, 0, 0, 0)
         user_info_layout.setSpacing(2)
-        
+
         # User greeting
         greeting = f"Hi, {self.user_data['first_name']} {self.user_data['last_name']}"
         user_label = QLabel(greeting)
         user_label.setFont(QFont("Segoe UI", 14, QFont.Medium))
-        user_label.setStyleSheet("color: #e8e9ea; border: none;")
+        user_label.setStyleSheet("color: #e8e9ea; border: none; padding: 4px")
         user_label.setAlignment(Qt.AlignRight)
-        
+
         # Level info
         level_label = QLabel(f"lv. {self.user_data['level']}")
         level_label.setFont(QFont("Segoe UI", 12))
-        level_label.setStyleSheet("color: #a8b5c1; border: none;")
+        level_label.setStyleSheet("color: #a8b5c1; border: none; padding: 4px")
         level_label.setAlignment(Qt.AlignRight)
-        
+
         user_info_layout.addWidget(user_label)
         user_info_layout.addWidget(level_label)
-        
+
         header_layout.addWidget(user_info_widget)
         parent_layout.addWidget(header_widget)
-    
+
     def create_navigation(self, parent_layout):
         """Create navigation tiles."""
         nav_widget = QWidget()
         nav_widget.setFixedHeight(70)
         nav_widget.setStyleSheet("background-color: #1a1d1f;")
-        
+
         nav_layout = QHBoxLayout(nav_widget)
         nav_layout.setContentsMargins(30, 15, 30, 15)
         nav_layout.setSpacing(20)
-        
+
         # Add spacer
         nav_layout.addStretch()
-        
+
         # Navigation buttons
         self.nav_buttons = {}
         nav_items = [
@@ -229,47 +241,407 @@ class EnhancedWellnessWindow(QMainWindow):
             ("configure", "Configure"),
             ("achievements", "Achievements")
         ]
-        
+
         for nav_id, nav_text in nav_items:
             btn = QPushButton(nav_text)
             btn.setMinimumSize(120, 40)
             btn.clicked.connect(lambda checked, nav_id=nav_id: self.switch_section(nav_id))
-            
+
             self.nav_buttons[nav_id] = btn
             nav_layout.addWidget(btn)
-        
+
         # Add spacer
         nav_layout.addStretch()
-        
+
         parent_layout.addWidget(nav_widget)
-    
+
     def create_content_area(self, parent_layout):
         """Create the main content area."""
         self.content_stack = QStackedWidget()
-        
+
         # Main page
         main_page = self.create_main_page()
-        
+
         # Stats page
         stats_page = self.create_stats_page()
-        
+
         # Configure page (placeholder)
-        configure_page = self.create_placeholder_page("Configuration", "Settings and preferences coming soon")
-        
+        configure_page = self.create_config_page("Konfiguracja Kamery", "Panel umożliwiający konfigurację kamery. Prawidłowo skonfigurowana kamera umożliwa detekcję aktywności na wielu monitorach.")
+
         # Achievements page (placeholder)
-        achievements_page = self.create_placeholder_page("Achievements", "Achievement system coming soon")
-        
+        achievements_page = self.create_placeholder_page("Osiągnięcia", "Osiągnięcia")
+
         # Add pages to stack
         self.content_stack.addWidget(main_page)        # index 0
         self.content_stack.addWidget(stats_page)       # index 1
         self.content_stack.addWidget(configure_page)   # index 2
         self.content_stack.addWidget(achievements_page) # index 3
-        
+
         parent_layout.addWidget(self.content_stack)
-        
+
         # Start with stats section
         self.switch_section("stats")
-    
+
+    def create_config_page(self, title, description, cursor=None, conn=None):
+        """
+        Ekran konfiguracji kamery z zapisem pozycji oczu + orientacji głowy (yaw,pitch,roll)
+        dla każdego monitora. Działa wewnątrz jednego taba (bez cv2.imshow()).
+        """
+
+        page = QWidget()
+        page.setStyleSheet("background-color: #1a1d1f;")
+        layout = QVBoxLayout(page)
+
+        title_label = QLabel(title)
+        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setFont(QFont("Segoe UI", 24))
+        title_label.setStyleSheet("color: #e8e9ea; margin: 50px;")
+        desc_label = QLabel(description)
+        desc_label.setAlignment(Qt.AlignCenter)
+        desc_label.setFont(QFont("Segoe UI", 14))
+        desc_label.setStyleSheet("color: #a8b5c1; margin-bottom: 30px;")
+        layout.addWidget(title_label)
+        layout.addWidget(desc_label)
+
+        camera_label = QLabel()
+        camera_label.setAlignment(Qt.AlignCenter)
+        camera_label.setFixedSize(640, 480)
+        camera_label.setStyleSheet("border: 2px solid #2c3e50; border-radius: 10px; background: black;")
+        layout.addWidget(camera_label, alignment=Qt.AlignCenter)
+
+        status_label = QLabel("Kliknij przycisk, aby rozpocząć konfigurację kamery.")
+        status_label.setAlignment(Qt.AlignCenter)
+        status_label.setStyleSheet("color: #f0f0f0; font-size: 16px; margin: 1px;")
+        layout.addWidget(status_label)
+
+        eyes_list = QListWidget()
+        eyes_list.setStyleSheet("color: #e8e9ea; background: #111214; border: 1px solid #2c3e50;")
+        eyes_list.setFixedHeight(160)
+        layout.addWidget(eyes_list)
+
+        progress = QProgressBar()
+        progress.setValue(0)
+        progress.setStyleSheet(
+            "QProgressBar{background:#2c3e50;color:white;border-radius:5px;}QProgressBar::chunk{background:#1abc9c;}")
+        layout.addWidget(progress)
+
+        calibrate_btn = QPushButton("Rozpocznij konfigurację kamery")
+        calibrate_btn.setStyleSheet("background-color:#1abc9c;color:white;padding:10px;border-radius:5px;")
+        layout.addWidget(calibrate_btn, alignment=Qt.AlignCenter)
+        layout.addStretch()
+
+        # stan i zmienne pomocnicze
+        cap = {"obj": None}
+        timer = QTimer()
+        try:
+            monitors = get_monitors()
+        except Exception:
+            logging.exception("get_monitors failed")
+            monitors = []
+        num_monitors = max(1, len(monitors))
+        current_index = {"i": 0}
+        timer_connected = {"v": False}
+        calibration_active = {"v": False}
+
+        calibration_templates = []
+
+        # przygotowanie Haar fallback jeśli brak MediaPipe
+        eye_cascade = None
+        try:
+            eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_eye.xml")
+            if eye_cascade.empty():
+                eye_cascade = None
+        except Exception:
+            eye_cascade = None
+
+        MP_AVAILABLE = False
+        face_mesh = None
+        try:
+            import mediapipe as mp
+            MP_AVAILABLE = True
+            mp_face_mesh = mp.solutions.face_mesh
+            face_mesh = mp_face_mesh.FaceMesh(static_image_mode=False, max_num_faces=1,
+                                              refine_landmarks=True, min_detection_confidence=0.5,
+                                              min_tracking_confidence=0.5)
+        except Exception:
+            MP_AVAILABLE = False
+            face_mesh = None
+            logging.info("MediaPipe FaceMesh not available; using Haar fallback if possible.")
+
+        # --- helper: estymacja head pose ---
+        def estimate_head_pose(landmarks, image_shape):
+            try:
+                h, w = image_shape[0], image_shape[1]
+                idx_map = {"nose": 1, "l_eye": 33, "r_eye": 263, "l_mouth": 61, "r_mouth": 291, "chin": 199}
+                image_points = np.array([
+                    (landmarks[idx_map["nose"]].x * w, landmarks[idx_map["nose"]].y * h),
+                    (landmarks[idx_map["l_eye"]].x * w, landmarks[idx_map["l_eye"]].y * h),
+                    (landmarks[idx_map["r_eye"]].x * w, landmarks[idx_map["r_eye"]].y * h),
+                    (landmarks[idx_map["l_mouth"]].x * w, landmarks[idx_map["l_mouth"]].y * h),
+                    (landmarks[idx_map["r_mouth"]].x * w, landmarks[idx_map["r_mouth"]].y * h),
+                    (landmarks[idx_map["chin"]].x * w, landmarks[idx_map["chin"]].y * h)
+                ], dtype=np.float64)
+
+                model_points = np.array([
+                    (0.0, 0.0, 0.0),
+                    (-60.0, -40.0, -30.0),
+                    (60.0, -40.0, -30.0),
+                    (-50.0, 40.0, -60.0),
+                    (50.0, 40.0, -60.0),
+                    (0.0, 110.0, -20.0)
+                ], dtype=np.float64)
+
+                focal_length = w
+                center = (w / 2, h / 2)
+                camera_matrix = np.array([[focal_length, 0, center[0]],
+                                          [0, focal_length, center[1]],
+                                          [0, 0, 1]], dtype=np.float64)
+                dist_coeffs = np.zeros((4, 1))
+
+                success, rotation_vector, translation_vector = cv2.solvePnP(
+                    model_points, image_points, camera_matrix, dist_coeffs, flags=cv2.SOLVEPNP_ITERATIVE
+                )
+                if not success:
+                    return False, (0.0, 0.0, 0.0)
+
+                rmat, _ = cv2.Rodrigues(rotation_vector)
+                sy = np.sqrt(rmat[0, 0] ** 2 + rmat[1, 0] ** 2)
+                singular = sy < 1e-6
+                if not singular:
+                    x = np.arctan2(rmat[2, 1], rmat[2, 2])
+                    y = np.arctan2(-rmat[2, 0], sy)
+                    z = np.arctan2(rmat[1, 0], rmat[0, 0])
+                else:
+                    x = np.arctan2(-rmat[1, 2], rmat[1, 1])
+                    y = np.arctan2(-rmat[2, 0], sy)
+                    z = 0.0
+                pitch = np.degrees(x)
+                yaw = np.degrees(y)
+                roll = np.degrees(z)
+                return True, (yaw, pitch, roll)
+            except Exception:
+                logging.exception("estimate_head_pose failed")
+                return False, (0.0, 0.0, 0.0)
+
+        # --- detekcja oczu ---
+        def detect_eyes_in_frame(frame):
+            try:
+                h, w = frame.shape[:2]
+                if MP_AVAILABLE and face_mesh is not None:
+                    img_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    results = face_mesh.process(img_rgb)
+                    if results.multi_face_landmarks:
+                        lm = results.multi_face_landmarks[0].landmark
+                        left_idxs = [33, 133, 160, 159, 158, 157, 173, 246]
+                        right_idxs = [362, 263, 387, 386, 385, 384, 398, 466]
+
+                        def avg_points(idxs):
+                            xs = [lm[i].x for i in idxs if i < len(lm)]
+                            ys = [lm[i].y for i in idxs if i < len(lm)]
+                            if not xs:
+                                return None
+                            return (int(sum(xs) / len(xs) * w), int(sum(ys) / len(ys) * h))
+
+                        left = avg_points(left_idxs)
+                        right = avg_points(right_idxs)
+                        return left, right, lm
+                if eye_cascade is not None:
+                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                    eyes = eye_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=3, minSize=(30, 30))
+                    eyes = sorted(eyes, key=lambda e: e[0])
+                    if len(eyes) >= 2:
+                        l = eyes[0]
+                        r = eyes[1]
+                        left_center = (int(l[0] + l[2] / 2), int(l[1] + l[3] / 2))
+                        right_center = (int(r[0] + r[2] / 2), int(r[1] + r[3] / 2))
+                        return left_center, right_center, None
+                    elif len(eyes) == 1:
+                        e = eyes[0]
+                        center = (int(e[0] + e[2] / 2), int(e[1] + e[3] / 2))
+                        return center, None, None
+            except Exception:
+                logging.exception("detect_eyes_in_frame exception")
+            return None, None, None
+
+        # --- update_frame ---
+        def update_frame():
+            try:
+                if cap["obj"] is None:
+                    return
+                ret, frame = cap["obj"].read()
+                if not ret or frame is None:
+                    return
+
+                left, right, lm = detect_eyes_in_frame(frame)
+                head = None
+                if MP_AVAILABLE and lm is not None:
+                    ok, head = estimate_head_pose(lm, frame.shape)
+                    if ok:
+                        camera_label._last_head = head
+                    else:
+                        camera_label._last_head = None
+                else:
+                    camera_label._last_head = None
+
+                vis = frame.copy()
+                if left:
+                    cv2.circle(vis, left, 4, (0, 255, 0), -1)
+                if right:
+                    cv2.circle(vis, right, 4, (0, 255, 0), -1)
+                if getattr(camera_label, "_last_head", None):
+                    yv, pv, rv = camera_label._last_head
+                    text = f"yaw:{yv:.1f} pitch:{pv:.1f}"
+                    cv2.putText(vis, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (200, 200, 50), 2)
+
+                frame_rgb = cv2.cvtColor(vis, cv2.COLOR_BGR2RGB)
+                h, w, ch = frame_rgb.shape
+                bytes_per_line = ch * w
+                qimg = QImage(frame_rgb.data, w, h, bytes_per_line, QImage.Format_RGB888)
+                pix = QPixmap.fromImage(qimg).scaled(camera_label.width(), camera_label.height(),
+                                                     Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                camera_label.setPixmap(pix)
+
+                camera_label._last_left = left
+                camera_label._last_right = right
+
+            except Exception:
+                logging.exception("Exception in update_frame")
+                safe_release()
+                status_label.setText("❌ Błąd przetwarzania kamery. Sprawdź logi.")
+                calibrate_btn.setEnabled(True)
+                calibration_active["v"] = False
+
+        import datetime
+
+        # --- record + zapis do bazy ---
+        def record_current_monitor_and_continue():
+            try:
+                left = getattr(camera_label, "_last_left", None)
+                right = getattr(camera_label, "_last_right", None)
+                head = getattr(camera_label, "_last_head", None)
+                mi = current_index['i'] + 1
+
+                logging.info(f"Recorded monitor {mi}: left={left}, right={right}, head={head}")
+                calibration_templates.append({"monitor": mi, "left": left, "right": right, "head": head})
+
+                item_text = f"Ekran {mi}: head={head}, left={left}, right={right}"
+                eyes_list.addItem(QListWidgetItem(item_text))
+                status_label.setText(f"Zarejestrowano pozycję oczu dla ekranu {mi}.")
+
+                # zapis do bazy danych
+                if cursor is not None and conn is not None:
+                    head_yaw, head_pitch, head_roll = head if head else (None, None, None)
+                    left_x, left_y = left if left else (None, None)
+                    right_x, right_y = right if right else (None, None)
+                    created_at = datetime.datetime.now().isoformat(timespec='seconds')
+
+                    cursor.execute('''
+                        INSERT INTO calibration_templates 
+                        (monitor, head_yaw, head_pitch, head_roll, left_x, left_y, right_x, right_y, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (mi, head_yaw, head_pitch, head_roll, left_x, left_y, right_x, right_y, created_at))
+                    conn.commit()
+
+            except Exception:
+                logging.exception("Error saving eye data")
+                status_label.setText("❌ Błąd zapisu pozycji oczu.")
+
+            current_index['i'] += 1
+            progress.setValue(int(current_index['i'] / num_monitors * 100))
+            QTimer.singleShot(800, next_monitor_step)
+
+        def next_monitor_step():
+            try:
+                total = num_monitors
+                if current_index['i'] >= total:
+                    safe_release()
+                    status_label.setText("✅ Konfiguracja zakończona.")
+                    progress.setValue(100)
+                    calibrate_btn.setEnabled(True)
+                    calibration_active['v'] = False
+                    return
+                mon = monitors[current_index['i']] if monitors else None
+                if mon:
+                    status_label.setText(
+                        f"📺 Ekran {current_index['i'] + 1}/{total} — ({mon.width}x{mon.height}). Popatrz teraz.")
+                else:
+                    status_label.setText(f"Ekran {current_index['i'] + 1}/{total}. Popatrz teraz.")
+                QTimer.singleShot(2000, record_current_monitor_and_continue)
+            except Exception:
+                logging.exception("next_monitor_step error")
+                safe_release()
+                status_label.setText("❌ Błąd w procesie konfiguracji.")
+                calibrate_btn.setEnabled(True)
+                calibration_active['v'] = False
+
+        def start_calibration():
+            if calibration_active['v']:
+                return
+            calibration_active['v'] = True
+            calibrate_btn.setEnabled(False)
+            current_index['i'] = 0
+            progress.setValue(0)
+            eyes_list.clear()
+            calibration_templates.clear()
+            status_label.setText("Inicjalizuję kamerę...")
+            logging.info("Start calibration")
+            try:
+                cap["obj"] = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+                if not (cap["obj"] and cap["obj"].isOpened()):
+                    status_label.setText("❌ Nie udało się otworzyć kamery.")
+                    logging.error("camera open failed")
+                    cap["obj"] = None
+                    calibrate_btn.setEnabled(True)
+                    calibration_active['v'] = False
+                    return
+                if not timer_connected["v"]:
+                    timer.timeout.connect(update_frame)
+                    timer_connected["v"] = True
+                timer.start(30)
+                QTimer.singleShot(800, next_monitor_step)
+            except Exception:
+                logging.exception("start_calibration failed")
+                status_label.setText("❌ Błąd inicjalizacji kamery.")
+                safe_release()
+                calibrate_btn.setEnabled(True)
+                calibration_active['v'] = False
+
+        def stop_calibration_clean():
+            safe_release()
+            status_label.setText("Kalibracja przerwana.")
+            calibrate_btn.setEnabled(True)
+            calibration_active['v'] = False
+
+        def safe_release():
+            try:
+                if cap["obj"] is not None:
+                    try:
+                        cap["obj"].release()
+                    except Exception:
+                        logging.exception("release failed")
+                    cap["obj"] = None
+                if timer.isActive():
+                    timer.stop()
+                if timer_connected["v"]:
+                    try:
+                        timer.timeout.disconnect(update_frame)
+                    except Exception:
+                        pass
+                    timer_connected["v"] = False
+            except Exception:
+                logging.exception("safe_release exception")
+            try:
+                if face_mesh is not None:
+                    try:
+                        face_mesh.close()
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+        calibrate_btn.clicked.connect(start_calibration)
+        return page
+
     def create_main_page(self):
         """Create the main dashboard page."""
         main_page = QWidget()
