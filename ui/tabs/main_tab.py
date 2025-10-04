@@ -1,14 +1,15 @@
 # ui/tabs/main_timer_tab.py
 
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSizePolicy
-from PyQt5.QtCore import pyqtSignal, Qt, QTimer, QUrl
+from PyQt5.QtCore import pyqtSignal, Qt, QTimer
 from PyQt5.QtGui import QMovie
 import os
+
 
 class MainTab(QWidget):
     """Zakładka główna z automatycznym timerem i animowanym GIF-em."""
 
-    timer_finished = pyqtSignal() # Sygnał, gdy timer skończy odliczanie
+    timer_finished = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -17,92 +18,100 @@ class MainTab(QWidget):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._update_countdown)
 
+        self.is_paused = False
+
         self.setLayout(self._setup_layout())
-        self._setup_gif_player() # Zmieniona nazwa metody
+        self._setup_gif_player()
 
         # Automatyczne uruchomienie timera i GIF-a po inicjalizacji
         self._start_initial_countdown()
-        self.gif_movie.start() # Start animacji GIF-a
+        self.gif_movie.start()
 
-    def reset_break_timer(self, x_angle, y_angle):
+    def pause_break_timer(self, x_angle, y_angle):
         """
-        Resetuje licznik czasu przerwy do wartości początkowej
-        i wyświetla ostrzeżenie.
+        Pauzuje timer przerwy gdy użytkownik patrzy w ekran.
         """
-        # Sprawdzamy, czy aplikacja jest w trybie przerwy
-        if self.current_seconds_left > 0:
-            self.current_seconds_left = self.total_time_seconds  # Reset czasu
+        if not self.is_paused and self.timer.isActive():
             self.timer.stop()
+            self.is_paused = True
+            self.status_label.setText(f"PAUZA! Patrzysz w ekran! (X:{x_angle:.1f}°)")
+            self.status_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #ff6b6b;")
+
+            # Opcjonalnie: zatrzymaj GIF
+            if self.gif_movie.state() == QMovie.Running:
+                self.gif_movie.setPaused(True)
+
+    def resume_break_timer(self):
+        """
+        Wznawia timer przerwy gdy użytkownik przestaje patrzeć w ekran.
+        """
+        if self.is_paused:
             self.timer.start(1000)
+            self.is_paused = False
+            self.status_label.setText("WZNOWIONO! Kontynuuj przerwę")
+            self.status_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #51cf66;")
 
-            self._update_display(self.current_seconds_left)
-
-            # Aktualizacja UI
-            self.status_label.setText(f"UWAGA! RESET! Patrzysz w ekran! (X:{x_angle:.1f})")
-            print(f"Timer ZRESETOWANY! Użytkownik spojrzał w ekran (Kąt X: {x_angle:.1f})")
+            # Opcjonalnie: wznów GIF
+            if self.gif_movie.state() == QMovie.Paused:
+                self.gif_movie.setPaused(False)
 
     def _setup_layout(self):
-        main_layout = QHBoxLayout() # Główny layout poziomy
+        main_layout = QHBoxLayout()
 
         # --- Lewa sekcja: Timer ---
         timer_section_layout = QVBoxLayout()
-        timer_section_layout.setAlignment(Qt.AlignCenter) # Wyśrodkowanie elementów timera
+        timer_section_layout.setAlignment(Qt.AlignCenter)
 
-        self.status_label = QLabel("CZAS DO KOŃCA PRACY")
+        self.status_label = QLabel("CZAS DO KOŃCA PRZERWY")
         self.status_label.setAlignment(Qt.AlignCenter)
         self.status_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #555;")
 
-        self.current_time_label = QLabel("05:00") # Początkowy czas
+        self.current_time_label = QLabel("05:00")
         self.current_time_label.setAlignment(Qt.AlignCenter)
-        self.current_time_label.setStyleSheet("font-size: 60px; font-weight: bold; color: #333;") # Większa czcionka
+        self.current_time_label.setStyleSheet("font-size: 60px; font-weight: bold; color: #333;")
 
-        timer_section_layout.addStretch(1) # Wypchnij do środka
+        timer_section_layout.addStretch(1)
         timer_section_layout.addWidget(self.status_label)
         timer_section_layout.addWidget(self.current_time_label)
-        timer_section_layout.addStretch(1) # Wypchnij do środka
+        timer_section_layout.addStretch(1)
 
-        main_layout.addLayout(timer_section_layout, 1) # 1/3 szerokości dla timera
+        main_layout.addLayout(timer_section_layout, 1)
 
         # --- Prawa sekcja: Odtwarzacz GIF ---
-        gif_section_layout = QVBoxLayout() # Zmieniona nazwa zmiennej
+        gif_section_layout = QVBoxLayout()
         gif_section_layout.setAlignment(Qt.AlignCenter)
 
-        gif_label_title = QLabel("ANIMACJA GIF") # Możesz usunąć tę etykietę, jeśli nie chcesz jej
+        gif_label_title = QLabel("ANIMACJA GIF")
         gif_label_title.setAlignment(Qt.AlignCenter)
         gif_label_title.setStyleSheet("font-size: 20px; font-weight: bold; color: #555;")
 
-        # Używamy QLabel do wyświetlania animowanego GIF-a
         self.gif_display_label = QLabel()
         self.gif_display_label.setAlignment(Qt.AlignCenter)
         self.gif_display_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.gif_display_label.setMinimumSize(400, 300)
-        self.gif_display_label.setStyleSheet("background-color: black;") # Opcjonalne tło
+        self.gif_display_label.setStyleSheet("background-color: black;")
 
-        gif_section_layout.addWidget(gif_label_title) # Możesz usunąć tę linię, jeśli nie chcesz etykiety
+        gif_section_layout.addWidget(gif_label_title)
         gif_section_layout.addWidget(self.gif_display_label)
-        gif_section_layout.addStretch(1) # Rozciągnij, aby GIF zajął dostępną przestrzeń
+        gif_section_layout.addStretch(1)
 
-        main_layout.addLayout(gif_section_layout, 3) # 2/3 szerokości dla GIF-a
+        main_layout.addLayout(gif_section_layout, 3)
 
         return main_layout
 
-    def _setup_gif_player(self): # Zmieniona nazwa metody
-        # movies_folder = "resources" # Ścieżka do folderu z GIF-em
-        gif_file = os.path.join("resources","movies","Zakrywanie powiek dłońmi.gif") # ZMIEŃ NA NAZWĘ SWOJEGO PLIKU GIF!
+    def _setup_gif_player(self):
+        gif_file = os.path.join("resources", "movies", "Zakrywanie powiek dłońmi.gif")
 
         self.gif_movie = QMovie(gif_file)
 
         if not self.gif_movie.isValid():
             print(f"Błąd: Plik GIF '{gif_file}' nie jest prawidłowym plikiem GIF lub nie został znaleziony.")
-            print("Upewnij się, że masz plik GIF w folderze 'resources/movies' i zmieniono jego nazwę w kodzie.")
-            # Wyświetl pusty obraz lub komunikat o błędzie, jeśli GIF jest nieprawidłowy
             self.gif_display_label.setText("BŁĄD: Nie znaleziono GIF-a lub jest uszkodzony.")
             self.gif_display_label.setStyleSheet("background-color: darkred; color: white; font-size: 16px;")
         else:
             self.gif_display_label.setMovie(self.gif_movie)
-            self.gif_movie.setCacheMode(QMovie.CacheAll) # Buforowanie wszystkich klatek dla płynności
-            self.gif_movie.setSpeed(100) # 100% prędkości (normalna). Możesz dostosować
-            # self.gif_movie.start() # Zostanie uruchomione w __init__
+            self.gif_movie.setCacheMode(QMovie.CacheAll)
+            self.gif_movie.setSpeed(100)
 
     def _start_initial_countdown(self):
         self._update_display(self.current_seconds_left)
@@ -114,10 +123,12 @@ class MainTab(QWidget):
         if self.current_seconds_left <= 0:
             self.current_seconds_left = 0
             self.timer.stop()
+            self.is_paused = False
             self.timer_finished.emit()
             print("Timer zakończył odliczanie!")
             self.gif_movie.stop()
-            self.status_label.setText("CZAS PRACY!")
+            self.status_label.setText("KONIEC PRZERWY!")
+            self.status_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #4c6ef5;")
 
         self._update_display(self.current_seconds_left)
 

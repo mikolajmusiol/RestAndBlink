@@ -7,7 +7,6 @@ from PyQt5.QtCore import QTimer, QCoreApplication
 # Importujemy moduły UI
 from ui.tray_icon import BreakReminderTrayIcon
 from ui.main_window import SettingsStatsWindow
-# Importujemy moduły Vision (EyeTracker jest teraz w tym samym pliku co Worker)
 from vision.eye_monitor import EyeMonitorWorker, EyeTracker
 
 
@@ -19,7 +18,6 @@ class ApplicationController:
     def __init__(self):
         # 0. Ustawienie aplikacji
         self.app = QApplication(sys.argv)
-        # Zapobiega zamknięciu aplikacji, gdy okno jest ukryte
         self.app.setQuitOnLastWindowClosed(False)
 
         # 1. Bezpieczne określenie ścieżek do Ikon
@@ -27,7 +25,6 @@ class ApplicationController:
         self.ICON_PATH = os.path.join(base_dir, "resources", "icons", "flower-2.svg")
         self.APP_ICON_PATH = os.path.join(base_dir, "resources", "icons", "app-icon.svg")
 
-        # Weryfikacja ścieżki (możemy użyć jednej do weryfikacji)
         if not os.path.exists(self.ICON_PATH):
             raise FileNotFoundError(f"BŁĄD: Plik ikony nie został znaleziony! Oczekiwana ścieżka: {self.ICON_PATH}")
 
@@ -48,12 +45,13 @@ class ApplicationController:
         self.eye_monitor_worker = None
 
         try:
-            print("Inicjalizacja EyeTracker (wątek główny)...")
             self.gaze_tracker_instance = EyeTracker()
-            self.eye_monitor_worker = EyeMonitorWorker(self.gaze_tracker_instance)
+            self.eye_monitor_worker = EyeMonitorWorker(
+                self.gaze_tracker_instance,
+                debounce_time=0.3  # Czas w sekundach przed zatwierdzeniem zmiany stanu
+            )
         except RuntimeError as e:
             print(f"BŁĄD KAMERY: {e}. Monitorowanie wzroku będzie wyłączone.")
-        # ---------------------------------------------
 
         # UI: Okno Ustawień/Statystyk
         self.settings_window = SettingsStatsWindow(self.APP_ICON_PATH)
@@ -75,29 +73,41 @@ class ApplicationController:
         self.settings_window.window_opened_signal.connect(self.pause_main_timer)
         self.settings_window.window_closed_signal.connect(self.resume_main_timer)
 
-        # 3. Połączenie Vision / UI (Reset Timera przerwy):
+        # 3. Połączenie Vision / UI (Pauza/Wznowienie Timera przerwy):
         if self.eye_monitor_worker:
-            self.eye_monitor_worker.gaze_detected_signal.connect(
-                self.settings_window.main_timer_tab.reset_break_timer
-            )
+            self.eye_monitor_worker.gaze_detected_signal.connect(self.handle_gaze_change)
+
+    def handle_gaze_change(self, looking_at_screen, x_angle, y_angle):
+        """
+        Obsługuje zmianę stanu patrzenia użytkownika.
+
+        Args:
+            looking_at_screen (bool): True jeśli patrzy w ekran, False jeśli nie
+            x_angle (float): Kąt w osi X
+            y_angle (float): Kąt w osi Y
+        """
+        if looking_at_screen:
+            # Użytkownik zaczął patrzeć w ekran - zapauzuj timer
+            self.settings_window.main_timer_tab.pause_break_timer(x_angle, y_angle)
+        else:
+            # Użytkownik przestał patrzeć w ekran - wznów timer
+            self.settings_window.main_timer_tab.resume_break_timer()
 
     def pause_main_timer(self):
         """Zatrzymuje główny timer odliczający czas pracy."""
         if self.timer.isActive():
             self.timer.stop()
-            print("TIMER: Zatrzymany (otwarto okno ustawień).")
 
     def resume_main_timer(self):
         """Wznawia główny timer odliczający czas pracy."""
         if not self.timer.isActive():
             self.timer.start()
-            print("TIMER: Wznowiony (zamknięto okno ustawień).")
 
     def _start_timer(self):
         """Uruchamia timer i wątek monitorujący wzrok."""
         self.resume_main_timer()
         if self.eye_monitor_worker:
-            self.eye_monitor_worker.start()  # Rozpoczęcie wątku monitorowania
+            self.eye_monitor_worker.start()
             print("Eye Monitor: Wątek uruchomiony.")
         else:
             print("Eye Monitor: Wątek nie uruchomiony (brak kamery).")
@@ -110,7 +120,7 @@ class ApplicationController:
         if self.eye_monitor_worker:
             self.eye_monitor_worker.stop()
 
-        # 2. Zwolnienie zasobów EyeTracker (w wątku głównym)
+        # 2. Zwolnienie zasobów EyeTracker
         if self.gaze_tracker_instance:
             self.gaze_tracker_instance.release()
             print("Zwolniono zasoby EyeTracker.")
