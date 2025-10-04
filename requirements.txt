@@ -1,0 +1,10 @@
+# Główne biblioteki GUI i zarządzania aplikacją
+PyQt5==5.15.10              # Framework do tworzenia interfejsu użytkownika (GUI) i appletu
+
+# --- Biblioteki do Logiki Audio ---
+PyQt5-QtMultimedia          # Moduł Qt do obsługi multimediów (odtwarzanie muzyki, komunikatów głosowych).
+                            # Zapewnia najlepszą integrację z aplikacją PyQt.
+
+opencv-python==4.9.0.80     # Biblioteka OpenCV do obsługi kamery i przetwarzania obrazu
+mediapipe==0.10.14          # Biblioteka Google do detekcji kluczowych punktów ciała (Pose Estimation)
+
