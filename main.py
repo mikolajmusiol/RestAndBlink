@@ -1,13 +1,13 @@
 # main.py
-
 import sys
 import os
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QMainWindow
 from PyQt5.QtCore import QTimer, QCoreApplication
 
 # Importujemy moduły UI
 from ui.tray_icon import BreakReminderTrayIcon
 from ui.main_window import SettingsStatsWindow
+
 
 
 class ApplicationController:
@@ -106,3 +106,19 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"Wystąpił nieoczekiwany błąd: {e}")
         sys.exit(1)
+
+
+# if __name__ == '__main__':
+    
+#     app = QApplication(sys.argv)
+#     app.setStyle("Fusion")
+
+#     main_window = QMainWindow()
+#     main_window.setWindowTitle("Automatyczny Timer i Odtwarzacz Wideo")
+#     main_window.setGeometry(100, 100, 1000, 600)
+
+#     main_tab = MainTab()
+#     main_window.setCentralWidget(main_tab)
+
+#     main_window.show()
+#     sys.exit(app.exec_())
