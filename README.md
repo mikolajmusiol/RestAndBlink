@@ -1,81 +1,76 @@
-# 🚀 Project Overtake: Predykcyjny Doradca Mobilności
+# 🚦 CommuteSync: Ekosystem Współdzielonej i Predykcyjnej Mobilności
 
-## "Przestań reagować na opóźnienia. Zacznij je wyprzedzać."
+## "Twój czas jest zbyt cenny, by polegać na oficjalnych komunikatach."
 
-**Project Overtake** to kompleksowe rozwiązanie do **Inteligentnego Zarządzania Informacją Pasażerską (PIM)**, które przechodzi od historycznego informowania o opóźnieniach do **predykcyjnej optymalizacji trasy** w czasie rzeczywistym. Naszym celem jest likwidacja "silosów danych" w transporcie publicznym i dostarczenie pasażerom **Wiedzy Absolutnej**, umożliwiającej świadome i natychmiastowe decyzje.
+**CommuteSync** to innowacyjna platforma, która łączy **zaawansowaną analitykę predykcyjną (AI)** z **siłą społeczności (Crowdsourcing)**, tworząc najbardziej aktualny i wiarygodny system zarządzania informacją o opóźnieniach w transporcie publicznym.
 
----
-
-## 🎯 Problem & Wizja
-
-### 🧐 Problem
-Miliony pasażerów codziennie tracą czas z powodu:
-1.  **Reaktywnego** informowania (komunikat jest opóźniony względem zdarzenia).
-2.  **Fragmentaryczności** danych (różne systemy przewoźników nie komunikują się).
-3.  **Braku Predykcji** (brak informacji, jak opóźnienie wpłynie na kolejne przesiadki).
-
-### ✨ Wizja
-Stworzenie **Jednolitego Inteligentnego Centrum Danych Transportowych (JICDT)**, które agreguje, normalizuje i przetwarza dane w czasie rzeczywistym, generując nie tylko **Estymowany Czas Przyjazdu (ETA)**, ale również **Optymalne Alternatywne Plany (OAP)**.
+Przestajemy czekać na to, co powie przewoźnik. Zaczynamy działać.
 
 ---
 
-## 🧠 Mechanizm Działania: Architektura JICDT
+## 🎯 Główne Wyzwanie
 
-### 1. Agregacja i Normalizacja Danych (Real-Time Fusion)
+Obecne systemy komunikacji pasażerskiej są **niezintegrowane** i **pasywne**. Informacja o opóźnieniu jest rozproszona, dociera zbyt późno lub jest niepełna. Brakuje wspólnego języka między przewoźnikami (kolej, autobus) a przede wszystkim – brakuje **głosu pasażera**.
 
-JICDT działa jako centralny broker danych, przyjmując strumienie z różnorodnych źródeł:
-* **GPS/AVL:** Pozycja, prędkość i faktyczne opóźnienie pojazdów.
-* **IoT & Infrastruktura:** Stan torów, sygnalizacji, zasilania (sensory predykcyjnego utrzymania ruchu).
-* **Zdarzenia Operacyjne:** Ręczne zgłoszenia dyspozytorów i zmiany w rozkładzie.
-* **Crowdsourcing:** Anonimowe dane o zagęszczeniu pasażerów w punktach transferowych.
-
-**Standard:** Wszystkie dane są ujednolicane do formatu **GTFS Realtime (GTFS-RT)**, co gwarantuje interoperacyjność.
-
-### 2. Analityka Predykcyjna (AI/ML Core)
-
-Sercem systemu jest model Uczenia Maszynowego, który oblicza dynamiczne opóźnienie:
-
-$$\Delta t_{\text{opóźnienia}}(k) = f_{\text{ML}}(\mathbf{X}_k, \mathbf{H})$$
-
-| Zmienna | Opis |
-| :--- | :--- |
-| $\Delta t$ | Prognozowany wzrost/spadek opóźnienia na odcinku $k$. |
-| $\mathbf{X}_k$ | Wektor cech w czasie rzeczywistym (pogoda, awarie, zagęszczenie). |
-| $\mathbf{H}$ | Historyczne dane opóźnień w podobnych warunkach (pamięć systemowa). |
-| $f_{\text{ML}}$ | Model regresji trenowany na minimalizację błędu prognozy ETA. |
-
-#### Wynik: Precyzyjne ETA
-
-Finalne $\text{ETA}_{\text{prognozowane}}$ jest obliczane nie na podstawie rozkładu, ale na podstawie dynamicznej symulacji uwzględniającej rozprzestrzenianie się zakłócenia (Ripple Effect).
-
-### 3. Generowanie OAP (The Overtake Advisor)
-
-Dla każdej zagrożonej trasy pasażera, system generuje zbiór alternatyw $A$:
-
-$$\text{OAP} = \min_{a \in A} \left( \text{ETA}_{\text{prognozowane}}(j)_a \right) \text{, gdzie } \sum \text{Dystans Pieszy} < \text{Dystans Maks.}$$
-
-System wybiera najszybszą opcję, jednocześnie minimalizując nieakceptowalny (dla pasażera) dystans pieszy.
+**CommuteSync** integruje te sfery w jednym, spójnym ekosystemie.
 
 ---
 
-## 💻 Interfejs Użytkownika (Pasażer)
+## 💡 Funkcjonalności i Architektura
 
-Wiedza jest dostarczana proaktywnie, a nie na żądanie:
+Platforma CommuteSync opiera się na czterech filarach, które zapewniają pełną i aktualną wiedzę o podróży:
 
-1.  **Powiadomienia Proaktywne:** Pasażer otrzymuje alert na 10 minut przed konieczną zmianą decyzji (np. przed wyjściem z domu, lub na stacji przesiadkowej).
-    > ⚠️ **ALERT!** Twoja planowana przesiadka (Metro M1) jest zagrożona (spóźnienie 15 minut). **Zalecana Akcja:** Zejdź 400m na przystanek Autobusowy 123. Oszczędzasz 12 minut.
-2.  **Wizualizacja Wpływu:** Zamiast suchego komunikatu, pasażer widzi swoją trasę: **ORYGINALNA (10:30) vs. ZALECANA (10:18)**.
-3.  **Mapa Ciepła Zakłóceń:** Dynamiczne renderowanie sieci, gdzie opóźnienia są wizualizowane jako strefy wysokiego ryzyka (czerwone/pomarańczowe), pozwalając pasażerowi "wyczuć" problematyczne obszary.
+### 1. 👥 Społecznościowe Zgłaszanie Utrudnień (Crowdsourcing & Weryfikacja)
+
+Pasażer jest pierwszym i najszybszym źródłem informacji.
+
+* **Zgłaszanie Utrudnień:** Użytkownicy mogą w czasie rzeczywistym zgłaszać problemy (np. zatrzymanie pociągu, objazd autobusu, awaria automatu). Zgłoszenia są natychmiast geolokalizowane i stają się potencjalnym alarmem dla innych.
+* **Mechanizm Weryfikacji (Consensus Protocol):** Aby uniknąć fałszywych alarmów, zgłoszenie staje się **zweryfikowane (Verified)**, gdy:
+    1.  Osiągnie minimalną liczbę potwierdzeń od innych użytkowników w tej samej lokalizacji/linii.
+    2.  Zostanie skorelowane z automatycznym sygnałem (np. nagłe spowolnienie prędkości GPS).
+* **System Motywacyjny (Gamifikacja):** Za pomocne i zweryfikowane zgłoszenia użytkownicy otrzymują **punkty Reputacji (Reputation Points)**, które można wymieniać na nagrody, zniżki lub specjalne funkcje w aplikacji.
+
+### 2. 🧠 Predykcja i Analiza Czasu Rzeczywistego
+
+To jest inteligencja stojąca za systemem:
+
+* **Przewidywanie Utrudnień (ML Forecasting):** System analizuje dane historyczne (pogoda, sezonowość, awarie infrastruktury) w połączeniu ze zgłoszeniami społecznymi i danymi GPS, aby prognozować, gdzie i kiedy **może** pojawić się opóźnienie, zanim stanie się faktem.
+* **Aktualizacje w Czasie Rzeczywistym:** Aplikacja dostarcza $\text{ETA}_{\text{prognozowane}}$ z dokładnością do minuty, uwzględniając realną pozycję środka transportu i lokalizację samego użytkownika.
+
+### 3. 🌐 API Integracji z Systemami Dyspozytorskimi
+
+Przechodzimy od zbierania fragmentarycznych komunikatów do zintegrowanej wymiany danych:
+
+* **Interface Dyspozytorski:** Zapewniamy **otwarte i bezpieczne API (np. oparte na standardzie GTFS-RT)**, które umożliwia dwukierunkową komunikację z systemami dyspozytorskimi przewoźników kolejowych i autobusowych.
+* **Korzyści dla Przewoźnika:** System dyspozytorski otrzymuje natychmiastowe, zweryfikowane alerty od pasażerów z terenu, uzupełniając własne systemy techniczne.
+* **Harmonizacja Danych:** Komunikaty "oficjalne" z systemów dyspozytorskich są automatycznie integrowane i ważone z danymi społecznościowymi w celu uzyskania pełniejszego obrazu.
+
+### 4. 🗺️ Interaktywna Mapa i Optymalna Nawigacja
+
+Wiedza w formie natychmiastowej decyzji:
+
+* **Mapa Zakłóceń:** Interaktywna mapa pokazuje bieżące i przewidywane utrudnienia. Utrudnienia zgłoszone przez społeczność są oznaczane ikonami (np. 'czerwona flaga'), a te zweryfikowane przez system są podświetlane kolorem (np. 'czerwony odcinek linii').
+* **Planowanie Optymalne (Dynamic Rerouting):** Algorytm nawigacyjny wykorzystuje predykcję ML i alerty społeczności, aby **natychmiast** zaproponować najszybszą i najbardziej niezawodną trasę alternatywną, minimalizując stratę czasu.
 
 ---
 
-## 🤝 Integracja i Współpraca
+## 💻 Tech Stack (Proponowany)
 
-Project Overtake dostarcza **API** oparte na GTFS-RT, umożliwiające łatwą integrację z istniejącymi aplikacjami mobilnymi, systemami biletowymi i tablicami informacyjnymi.
+| Komponent | Technologia / Standard | Funkcja |
+| :--- | :--- | :--- |
+| **Integracja Danych** | **GTFS-RT API, REST API** | Wymiana danych z przewoźnikami i systemami zewnętrznymi. |
+| **Backend** | Python (Django/FastAPI), Bazy Danych Geoprzestrzennych (PostGIS) | Zarządzanie logiką, modelem danych, geolokalizacją. |
+| **Model Predykcyjny** | Machine Learning (Biblioteki: Scikit-learn, TensorFlow) | Prognozowanie ETA i rozprzestrzeniania się zakłóceń. |
+| **Frontend/Aplikacja** | React Native / Kotlin / Swift | Interaktywna mapa i powiadomienia w czasie rzeczywistym. |
 
-**Szukamy:**
-* **Przewoźników** chętnych do udostępniania danych w czasie rzeczywistym.
-* **Miast/Regionów** gotowych do wdrożenia predykcyjnych modeli mobilności.
-* **Deweloperów** chcących wzbogacić swoje aplikacje o wiedzę predykcyjną.
+---
 
-> **Project Overtake.** Twoja mobilność jest zbyt ważna, by polegać na zgadywaniu.
+## 🤝 Dołącz do Społeczności CommuteSync
+
+Szukamy partnerów do budowy ekosystemu:
+
+* **Pasażerowie:** Zostań wczesnym testerem i pomóż nam weryfikacji zgłoszeń.
+* **Przewoźnicy:** Zintegruj swoje systemy dyspozytorskie poprzez nasze API i zyskaj natychmiastowy feedback z terenu.
+* **Deweloperzy:** Współtwórz architekturę predykcyjną i logikę weryfikacji społecznościowej.
+
+**CommuteSync.** Zarządzaj swoją podróżą, nie daj się jej zarządzać.
