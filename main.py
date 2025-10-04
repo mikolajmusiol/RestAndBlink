@@ -1,64 +1,67 @@
 # main.py
 
 import sys
+import os
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import QTimer, QCoreApplication
 
-# Importuj moduły, które stworzymy
+# Importujemy moduły UI
 from ui.tray_icon import BreakReminderTrayIcon
+from ui.main_window import SettingsStatsWindow
 
-
-# from core.timer import BreakTimer  # Docelowo odkomentujesz
-# from ui.main_window import SettingsWindow # Docelowo odkomentujesz
 
 class ApplicationController:
     """
-    Główny kontroler łączący logikę (Timer) z UI (TrayIcon).
+    Główny kontroler łączący logikę (Timer) z UI (TrayIcon, Windows).
     """
 
     def __init__(self):
-        # Używamy QCoreApplication.instance() lub tworzymy nową, jeśli nie istnieje
+        # 0. Ustawienie aplikacji
         self.app = QApplication(sys.argv)
-        self.app.setQuitOnLastWindowClosed(False)  # Aplikacja nie zamyka się po zamknięciu okna
+        # Zapobiega zamknięciu aplikacji, gdy okno jest ukryte
+        self.app.setQuitOnLastWindowClosed(False)
 
-        # UWAGA: Użyj ścieżki do swojej ikony (np. resources/icons/tray_icon.png)
-        # Zastąp poniższy string poprawną ścieżką do PNG/ICO
-        self.ICON_PATH = "resources/icons/flower-2.svg"
+        # 1. Bezpieczne określenie ścieżki do Ikony (Klucz do rozwiązania problemu z wyświetlaniem)
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        self.ICON_PATH = os.path.join(base_dir, "resources", "icons", "flower-2.svg")
 
-        # 1. Inicjalizacja komponentów
+        # Sprawdzenie, czy plik istnieje
+        if not os.path.exists(self.ICON_PATH):
+            raise FileNotFoundError(f"BŁĄD: Plik ikony nie został znaleziony! Oczekiwana ścieżka: {self.ICON_PATH}")
+
+        # 2. Inicjalizacja komponentów
         self._initialize_components()
 
-        # 2. Uruchomienie Timera
+        # 3. Uruchomienie Timera
         self._start_timer()
 
     def _initialize_components(self):
         """Tworzy instancje UI i Logiki."""
 
+        # UI: Okno Ustawień/Statystyk
+        self.settings_window = SettingsStatsWindow()
+
         # UI: Applet w zasobniku
         self.tray_icon = BreakReminderTrayIcon(self.ICON_PATH)
 
-        # LOGIKA: Timer (NA RAZIE UŻYJEMY QTimer DO DEMONSTRACJI)
+        # LOGIKA: Timer (QTimer do demonstracji)
         self.timer = QTimer()
-        self.timer.setInterval(30000)  # 30 sekund na potrzeby testu (docelowo: 1200000ms = 20 min)
+        self.timer.setInterval(15000)  # 15 sekund na potrzeby testu
 
-        # WINDOWS: Okno Ustawień (Docelowo)
-        # self.settings_window = SettingsWindow()
-
-        # 3. Łączenie sygnałów
+        # 4. Łączenie sygnałów
         self._connect_signals()
 
     def _connect_signals(self):
         """Łączy sygnały pomiędzy komponentami."""
 
-        # Połączenie sygnału z Appletu do logiki wyjścia
-        self.tray_icon.exit_app_signal.connect(self.exit_application)
+        # 1. Połączenie Appletu (kliknięcie/menu) -> Okno
+        self.tray_icon.show_settings_signal.connect(self.settings_window.show)
 
-        # Połączenie sygnału z Appletu do pokazania ustawień/statystyk
-        # self.tray_icon.show_settings_signal.connect(self.settings_window.show) # Docelowo
-        self.tray_icon.show_settings_signal.connect(lambda: print("Otwórz okno ustawień/statystyk!"))
-
-        # Połączenie Timera do metody w Applet'cie, która wyświetli powiadomienie
+        # 2. Połączenie Timera -> Applet (powiadomienie)
         self.timer.timeout.connect(self.tray_icon.show_break_reminder)
+
+        # 3. Połączenie Appletu -> Wyjście z aplikacji
+        self.tray_icon.exit_app_signal.connect(self.exit_application)
 
     def _start_timer(self):
         """Uruchamia timer."""
@@ -68,24 +71,20 @@ class ApplicationController:
     def exit_application(self):
         """Bezpiecznie zamyka aplikację."""
         print("Zamykanie aplikacji...")
-        # Ukryj ikonę przed zamknięciem
         self.tray_icon.hide()
         QCoreApplication.quit()
-        # sys.exit(0) # Alternatywna metoda
 
     def run(self):
         """Uruchamia pętlę zdarzeń aplikacji."""
-        # Wymagane, aby aplikacja działała
         return self.app.exec_()
 
 
 if __name__ == '__main__':
-    # Ważne: Stwórz katalog 'resources/icons' i umieść tam 'tray_icon.png' przed uruchomieniem
     try:
         controller = ApplicationController()
         sys.exit(controller.run())
     except FileNotFoundError as e:
-        print(f"BŁĄD: Upewnij się, że plik ikony istnieje pod ścieżką: {e}")
+        print(e)
         sys.exit(1)
     except Exception as e:
         print(f"Wystąpił nieoczekiwany błąd: {e}")
