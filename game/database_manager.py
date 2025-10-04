@@ -31,17 +31,26 @@ class DatabaseManager:
                     )
                 ''')
                 
-                # Create Sessions table for exercise tracking
+                # Create Sessions table for comprehensive exercise and health tracking
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS Sessions (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        user_id INTEGER,
-                        timestamp TEXT,
-                        exercise_type TEXT,
+                        user_id INTEGER NOT NULL,
+                        timestamp TEXT NOT NULL,
+                        exercise_type TEXT DEFAULT 'break',
                         time_intervals TEXT,
-                        total_time_seconds INTEGER,
-                        score INTEGER,
-                        FOREIGN KEY (user_id) REFERENCES Users (id)
+                        total_time_seconds INTEGER DEFAULT 0,
+                        score INTEGER DEFAULT 0,
+                        heartbeat_data TEXT,
+                        avg_heartbeat REAL DEFAULT 0.0,
+                        min_heartbeat INTEGER DEFAULT 0,
+                        max_heartbeat INTEGER DEFAULT 0,
+                        stress_level REAL DEFAULT 0.0,
+                        rest_quality_score REAL DEFAULT 0.0,
+                        interruption_count INTEGER DEFAULT 0,
+                        session_completed BOOLEAN DEFAULT 1,
+                        notes TEXT,
+                        FOREIGN KEY (user_id) REFERENCES Users (id) ON DELETE CASCADE
                     )
                 ''')
                 
@@ -144,6 +153,59 @@ class DatabaseManager:
                 cursor.execute('''
                     CREATE INDEX IF NOT EXISTS idx_eye_tracking_user_time 
                     ON EyeTrackingData (user_id, timestamp)
+                ''')
+                
+                # Create HeartbeatData table for detailed heartbeat tracking (every 5 seconds)
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS HeartbeatData (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        session_id INTEGER NOT NULL,
+                        user_id INTEGER NOT NULL,
+                        timestamp TEXT NOT NULL,
+                        heartbeat_bpm INTEGER NOT NULL,
+                        stress_indicator REAL DEFAULT 0.0,
+                        activity_level TEXT DEFAULT 'resting',
+                        data_quality REAL DEFAULT 1.0,
+                        FOREIGN KEY (session_id) REFERENCES Sessions (id) ON DELETE CASCADE,
+                        FOREIGN KEY (user_id) REFERENCES Users (id) ON DELETE CASCADE
+                    )
+                ''')
+                
+                # Create DailyHealthStats table for end-of-day summaries
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS DailyHealthStats (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        date TEXT NOT NULL,
+                        total_break_time_seconds INTEGER DEFAULT 0,
+                        total_sessions INTEGER DEFAULT 0,
+                        avg_daily_heartbeat REAL DEFAULT 0.0,
+                        min_daily_heartbeat INTEGER DEFAULT 0,
+                        max_daily_heartbeat INTEGER DEFAULT 0,
+                        avg_stress_level REAL DEFAULT 0.0,
+                        avg_rest_quality REAL DEFAULT 0.0,
+                        total_interruptions INTEGER DEFAULT 0,
+                        best_rest_session_id INTEGER,
+                        worst_rest_session_id INTEGER,
+                        health_score REAL DEFAULT 0.0,
+                        notes TEXT,
+                        created_timestamp TEXT NOT NULL,
+                        FOREIGN KEY (user_id) REFERENCES Users (id) ON DELETE CASCADE,
+                        FOREIGN KEY (best_rest_session_id) REFERENCES Sessions (id) ON DELETE SET NULL,
+                        FOREIGN KEY (worst_rest_session_id) REFERENCES Sessions (id) ON DELETE SET NULL,
+                        UNIQUE(user_id, date)
+                    )
+                ''')
+                
+                # Create indexes for performance
+                cursor.execute('''
+                    CREATE INDEX IF NOT EXISTS idx_heartbeat_session_time 
+                    ON HeartbeatData (session_id, timestamp)
+                ''')
+                
+                cursor.execute('''
+                    CREATE INDEX IF NOT EXISTS idx_daily_stats_user_date 
+                    ON DailyHealthStats (user_id, date)
                 ''')
                 
                 conn.commit()
@@ -581,6 +643,277 @@ class DatabaseManager:
         except Exception as e:
             print(f"Error completing exercise session: {e}")
             return {'success': False, 'error': str(e)}
+    
+    def start_health_session(self, user_id, exercise_type="break"):
+        """Start a new health tracking session"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                from datetime import datetime
+                current_time = datetime.now().isoformat()
+                
+                cursor.execute('''
+                    INSERT INTO Sessions (user_id, timestamp, exercise_type, session_completed)
+                    VALUES (?, ?, ?, 0)
+                ''', (user_id, current_time, exercise_type))
+                
+                session_id = cursor.lastrowid
+                conn.commit()
+                
+                return {'success': True, 'session_id': session_id}
+                
+        except sqlite3.Error as e:
+            print(f"Error starting health session: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    def record_heartbeat(self, session_id, user_id, heartbeat_bpm, stress_indicator=0.0, activity_level='resting'):
+        """Record heartbeat data point (every 5 seconds)"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                from datetime import datetime
+                current_time = datetime.now().isoformat()
+                
+                # Calculate data quality based on reasonable heartbeat ranges
+                data_quality = 1.0
+                if heartbeat_bpm < 40 or heartbeat_bpm > 200:
+                    data_quality = 0.3  # Poor quality data
+                elif heartbeat_bpm < 50 or heartbeat_bpm > 150:
+                    data_quality = 0.7  # Medium quality data
+                
+                cursor.execute('''
+                    INSERT INTO HeartbeatData 
+                    (session_id, user_id, timestamp, heartbeat_bpm, stress_indicator, activity_level, data_quality)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (session_id, user_id, current_time, heartbeat_bpm, stress_indicator, activity_level, data_quality))
+                
+                conn.commit()
+                return {'success': True, 'data_quality': data_quality}
+                
+        except sqlite3.Error as e:
+            print(f"Error recording heartbeat: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    def complete_health_session(self, session_id, time_intervals, interruption_count=0, notes=""):
+        """Complete a health session with full analysis"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                from datetime import datetime
+                
+                # Get all heartbeat data for this session
+                cursor.execute('''
+                    SELECT heartbeat_bpm, stress_indicator, data_quality 
+                    FROM HeartbeatData 
+                    WHERE session_id = ?
+                    ORDER BY timestamp
+                ''', (session_id,))
+                
+                heartbeat_records = cursor.fetchall()
+                
+                if heartbeat_records:
+                    # Calculate heartbeat statistics
+                    heartbeats = [record[0] for record in heartbeat_records]
+                    stress_levels = [record[1] for record in heartbeat_records]
+                    
+                    avg_heartbeat = sum(heartbeats) / len(heartbeats)
+                    min_heartbeat = min(heartbeats)
+                    max_heartbeat = max(heartbeats)
+                    avg_stress = sum(stress_levels) / len(stress_levels) if stress_levels else 0.0
+                    
+                    # Calculate rest quality score (lower heartbeat variability = better rest)
+                    if len(heartbeats) > 1:
+                        heartbeat_variance = sum([(hb - avg_heartbeat) ** 2 for hb in heartbeats]) / len(heartbeats)
+                        rest_quality = max(0.0, min(10.0, 10.0 - (heartbeat_variance / 100)))
+                    else:
+                        rest_quality = 5.0  # Default moderate quality
+                    
+                    # Create heartbeat data JSON
+                    heartbeat_data = {
+                        'timestamps': [i * 5 for i in range(len(heartbeats))],  # Every 5 seconds
+                        'heartbeats': heartbeats,
+                        'stress_levels': stress_levels
+                    }
+                    
+                else:
+                    # No heartbeat data available
+                    avg_heartbeat = min_heartbeat = max_heartbeat = 0
+                    avg_stress = rest_quality = 0.0
+                    heartbeat_data = {'timestamps': [], 'heartbeats': [], 'stress_levels': []}
+                
+                # Calculate total time and score
+                total_time = sum(time_intervals) if time_intervals else 0
+                
+                # Calculate session score using ScoreManager
+                from score_manager import ScoreManager
+                score_manager = ScoreManager()
+                session_score = score_manager.calculate_session_score(time_intervals) if time_intervals else 0
+                
+                # Update session record
+                cursor.execute('''
+                    UPDATE Sessions 
+                    SET time_intervals = ?, total_time_seconds = ?, score = ?,
+                        heartbeat_data = ?, avg_heartbeat = ?, min_heartbeat = ?, max_heartbeat = ?,
+                        stress_level = ?, rest_quality_score = ?, interruption_count = ?,
+                        session_completed = 1, notes = ?
+                    WHERE id = ?
+                ''', (
+                    str(time_intervals), total_time, session_score,
+                    str(heartbeat_data), avg_heartbeat, min_heartbeat, max_heartbeat,
+                    avg_stress, rest_quality, interruption_count, notes, session_id
+                ))
+                
+                # Update user stats
+                cursor.execute('SELECT user_id FROM Sessions WHERE id = ?', (session_id,))
+                user_id = cursor.fetchone()[0]
+                
+                cursor.execute('''
+                    UPDATE Users 
+                    SET total_points = total_points + ?,
+                        total_sessions = total_sessions + 1,
+                        total_time_seconds = total_time_seconds + ?,
+                        experience_points = experience_points + ?,
+                        last_activity = ?
+                    WHERE id = ?
+                ''', (session_score, total_time, session_score, datetime.now().isoformat(), user_id))
+                
+                # Check for level up
+                self._check_level_up(cursor, user_id)
+                
+                conn.commit()
+                
+                # Check for newly earned achievements
+                newly_earned = self.auto_check_and_award_achievements(user_id)
+                
+                return {
+                    'success': True,
+                    'session_stats': {
+                        'total_time': total_time,
+                        'score': session_score,
+                        'avg_heartbeat': round(avg_heartbeat, 1),
+                        'heartbeat_range': f"{min_heartbeat}-{max_heartbeat}",
+                        'avg_stress': round(avg_stress, 2),
+                        'rest_quality': round(rest_quality, 1),
+                        'interruptions': interruption_count
+                    },
+                    'newly_earned_achievements': newly_earned
+                }
+                
+        except Exception as e:
+            print(f"Error completing health session: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    def generate_daily_health_summary(self, user_id, date=None):
+        """Generate end-of-day health statistics"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                from datetime import datetime, date as date_module
+                
+                if date is None:
+                    date = date_module.today().isoformat()
+                
+                # Get all sessions for the day
+                cursor.execute('''
+                    SELECT id, total_time_seconds, avg_heartbeat, min_heartbeat, max_heartbeat,
+                           stress_level, rest_quality_score, interruption_count
+                    FROM Sessions
+                    WHERE user_id = ? AND DATE(timestamp) = ? AND session_completed = 1
+                ''', (user_id, date))
+                
+                sessions = cursor.fetchall()
+                
+                if not sessions:
+                    return {'success': False, 'message': 'No sessions found for this date'}
+                
+                # Calculate daily statistics
+                total_sessions = len(sessions)
+                total_break_time = sum(session[1] for session in sessions)
+                
+                # Heartbeat statistics (only from sessions with heartbeat data)
+                heartbeat_sessions = [s for s in sessions if s[2] > 0]
+                if heartbeat_sessions:
+                    avg_daily_heartbeat = sum(s[2] for s in heartbeat_sessions) / len(heartbeat_sessions)
+                    min_daily_heartbeat = min(s[3] for s in heartbeat_sessions)
+                    max_daily_heartbeat = max(s[4] for s in heartbeat_sessions)
+                else:
+                    avg_daily_heartbeat = min_daily_heartbeat = max_daily_heartbeat = 0
+                
+                # Stress and quality statistics
+                stress_sessions = [s for s in sessions if s[5] > 0]
+                avg_stress = sum(s[5] for s in stress_sessions) / len(stress_sessions) if stress_sessions else 0
+                
+                quality_sessions = [s for s in sessions if s[6] > 0]
+                avg_rest_quality = sum(s[6] for s in quality_sessions) / len(quality_sessions) if quality_sessions else 0
+                
+                total_interruptions = sum(s[7] for s in sessions)
+                
+                # Find best and worst sessions
+                if quality_sessions:
+                    best_session = max(quality_sessions, key=lambda x: x[6])
+                    worst_session = min(quality_sessions, key=lambda x: x[6])
+                    best_session_id = best_session[0]
+                    worst_session_id = worst_session[0]
+                else:
+                    best_session_id = worst_session_id = None
+                
+                # Calculate overall health score (0-100)
+                health_score = self._calculate_health_score(
+                    avg_rest_quality, avg_stress, total_interruptions, total_sessions
+                )
+                
+                # Save daily summary
+                cursor.execute('''
+                    INSERT OR REPLACE INTO DailyHealthStats
+                    (user_id, date, total_break_time_seconds, total_sessions, avg_daily_heartbeat,
+                     min_daily_heartbeat, max_daily_heartbeat, avg_stress_level, avg_rest_quality,
+                     total_interruptions, best_rest_session_id, worst_rest_session_id, 
+                     health_score, created_timestamp)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    user_id, date, total_break_time, total_sessions, avg_daily_heartbeat,
+                    min_daily_heartbeat, max_daily_heartbeat, avg_stress, avg_rest_quality,
+                    total_interruptions, best_session_id, worst_session_id, health_score,
+                    datetime.now().isoformat()
+                ))
+                
+                conn.commit()
+                
+                return {
+                    'success': True,
+                    'daily_stats': {
+                        'date': date,
+                        'total_sessions': total_sessions,
+                        'total_break_time_minutes': round(total_break_time / 60, 1),
+                        'avg_heartbeat': round(avg_daily_heartbeat, 1),
+                        'heartbeat_range': f"{min_daily_heartbeat}-{max_daily_heartbeat}",
+                        'avg_stress_level': round(avg_stress, 2),
+                        'avg_rest_quality': round(avg_rest_quality, 1),
+                        'total_interruptions': total_interruptions,
+                        'health_score': round(health_score, 1)
+                    }
+                }
+                
+        except Exception as e:
+            print(f"Error generating daily health summary: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    def _calculate_health_score(self, rest_quality, stress_level, interruptions, sessions):
+        """Calculate overall health score (0-100)"""
+        # Base score from rest quality (0-10 scale -> 0-50 points)
+        quality_score = (rest_quality / 10.0) * 50
+        
+        # Stress penalty (0-1 scale -> 0-25 points penalty)
+        stress_penalty = stress_level * 25
+        
+        # Interruption penalty (each interruption = -2 points)
+        interruption_penalty = min(interruptions * 2, 20)  # Max 20 points penalty
+        
+        # Session bonus (more sessions = better, up to +5 points)
+        session_bonus = min(sessions, 5)
+        
+        health_score = max(0, min(100, quality_score - stress_penalty - interruption_penalty + session_bonus))
+        return health_score
     
     def add_monitor_configuration(self, user_id, monitor_name, angle_x, angle_y, distance_cm=60.0, is_primary=False):
         """Add or update monitor configuration for a user"""

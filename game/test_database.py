@@ -4,7 +4,33 @@
 from database_manager import DatabaseManager
 
 def test_achievement_system():
-    """Test the new achievement system"""
+    """Test th            # Show EyeTrackingData table structure
+            cursor.execute("PRAGMA table_info(EyeTrackingData)")
+            eye_columns = cursor.fetchall()
+            print(f"\n👁️  EYE_TRACKING_DATA TABLE:")
+            for col in eye_columns:
+                print(f"  - {col[1]} ({col[2]}) {'NOT NULL' if col[3] else 'NULL'}")
+            
+            # Show Sessions table structure
+            cursor.execute("PRAGMA table_info(Sessions)")
+            sessions_columns = cursor.fetchall()
+            print(f"\n🏃 SESSIONS TABLE (with health data):")
+            for col in sessions_columns:
+                print(f"  - {col[1]} ({col[2]}) {'NOT NULL' if col[3] else 'NULL'}")
+            
+            # Show HeartbeatData table structure
+            cursor.execute("PRAGMA table_info(HeartbeatData)")
+            heartbeat_columns = cursor.fetchall()
+            print(f"\n💓 HEARTBEAT_DATA TABLE:")
+            for col in heartbeat_columns:
+                print(f"  - {col[1]} ({col[2]}) {'NOT NULL' if col[3] else 'NULL'}")
+            
+            # Show DailyHealthStats table structure
+            cursor.execute("PRAGMA table_info(DailyHealthStats)")
+            daily_columns = cursor.fetchall()
+            print(f"\n📊 DAILY_HEALTH_STATS TABLE:")
+            for col in daily_columns:
+                print(f"  - {col[1]} ({col[2]}) {'NOT NULL' if col[3] else 'NULL'}")achievement system"""
     db = DatabaseManager()
     
     print("=== TESTING NEW ACHIEVEMENT SYSTEM ===\n")
@@ -160,7 +186,85 @@ def test_database_structure():
     except Exception as e:
         print(f"Error testing database structure: {e}")
 
+def test_health_session():
+    """Test health session with heartbeat tracking"""
+    db = DatabaseManager()
+    
+    print("\n=== HEALTH SESSION TEST ===\n")
+    
+    # Start a health session
+    print("💓 Starting health tracking session...")
+    session_result = db.start_health_session(1, "eye_break")
+    
+    if session_result['success']:
+        session_id = session_result['session_id']
+        print(f"✅ Session {session_id} started")
+        
+        # Simulate heartbeat data over time (every 5 seconds)
+        print("\n📊 Recording heartbeat data...")
+        import random
+        import time
+        
+        heartbeat_data = []
+        base_heartbeat = 75  # Base resting heart rate
+        
+        for i in range(12):  # 12 readings = 60 seconds of data
+            # Simulate realistic heartbeat variation
+            variation = random.uniform(-5, 5)
+            heartbeat = int(base_heartbeat + variation)
+            
+            # Simulate stress level (lower during rest)
+            stress = max(0.0, random.uniform(0.1, 0.4))
+            
+            result = db.record_heartbeat(session_id, 1, heartbeat, stress, 'resting')
+            if result['success']:
+                heartbeat_data.append(heartbeat)
+                print(f"  {i*5:2d}s: {heartbeat} BPM (stress: {stress:.2f}) - Quality: {result['data_quality']:.1f}")
+        
+        # Simulate session completion with interruptions
+        print(f"\n🏁 Completing session with interruptions...")
+        time_intervals = [120, 180]  # 2 minutes, then 3 minutes (total 5 min)
+        interruption_count = 1  # One interruption after 2 minutes
+        
+        completion_result = db.complete_health_session(
+            session_id, time_intervals, interruption_count, 
+            "Good rest session with one interruption"
+        )
+        
+        if completion_result['success']:
+            stats = completion_result['session_stats']
+            print(f"✅ Session completed successfully!")
+            print(f"  📊 Total Time: {stats['total_time']}s ({stats['total_time']/60:.1f} min)")
+            print(f"  🏆 Score: {stats['score']} points")
+            print(f"  💓 Avg Heartbeat: {stats['avg_heartbeat']} BPM")
+            print(f"  📈 Heartbeat Range: {stats['heartbeat_range']} BPM")
+            print(f"  😰 Avg Stress: {stats['avg_stress']}")
+            print(f"  🌟 Rest Quality: {stats['rest_quality']}/10")
+            print(f"  ⚠️  Interruptions: {stats['interruptions']}")
+            
+            if completion_result['newly_earned_achievements']:
+                print(f"\n🎉 New achievements earned:")
+                for ach in completion_result['newly_earned_achievements']:
+                    print(f"  🏆 {ach['name']}")
+    
+    # Generate daily summary
+    print(f"\n📈 Generating daily health summary...")
+    daily_result = db.generate_daily_health_summary(1)
+    
+    if daily_result['success']:
+        daily = daily_result['daily_stats']
+        print(f"📅 Daily Health Report for {daily['date']}:")
+        print(f"  🎯 Sessions: {daily['total_sessions']}")
+        print(f"  ⏱️  Total Break Time: {daily['total_break_time_minutes']} minutes")
+        print(f"  💓 Avg Heartbeat: {daily['avg_heartbeat']} BPM")
+        print(f"  📊 Heartbeat Range: {daily['heartbeat_range']} BPM")
+        print(f"  😰 Avg Stress: {daily['avg_stress_level']}")
+        print(f"  🌟 Avg Rest Quality: {daily['avg_rest_quality']}/10")
+        print(f"  ⚠️  Total Interruptions: {daily['total_interruptions']}")
+        print(f"  🏥 Health Score: {daily['health_score']}/100")
+
 if __name__ == "__main__":
     test_database_structure()
     test_monitor_configuration()
+    test_health_session()
     test_achievement_system()
