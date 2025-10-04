@@ -9,7 +9,6 @@ from ui.tray_icon import BreakReminderTrayIcon
 from ui.main_window import SettingsStatsWindow
 
 
-
 class ApplicationController:
     """
     Główny kontroler łączący logikę (Timer) z UI (TrayIcon, Windows).

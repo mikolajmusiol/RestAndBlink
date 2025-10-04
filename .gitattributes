@@ -1,0 +1,4 @@
+resources/ filter=lfs diff=lfs merge=lfs -text
+resources/** filter=lfs diff=lfs merge=lfs -text
+resources/gifs/palming.gif filter=lfs diff=lfs merge=lfs -text
+resources/gifs/fast_blinking.gif filter=lfs diff=lfs merge=lfs -text
