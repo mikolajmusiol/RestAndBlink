@@ -45,10 +45,7 @@ class ApplicationController:
 
         try:
             self.gaze_tracker_instance = EyeTracker()
-            self.eye_monitor_worker = EyeMonitorWorker(
-                self.gaze_tracker_instance,
-                debounce_time=0.3  # Czas w sekundach przed zatwierdzeniem zmiany stanu
-            )
+            self.eye_monitor_worker = EyeMonitorWorker(self.gaze_tracker_instance)
         except RuntimeError as e:
             print(f"BŁĄD KAMERY: {e}. Monitorowanie wzroku będzie wyłączone.")
 

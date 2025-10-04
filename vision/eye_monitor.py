@@ -8,7 +8,7 @@ from PyQt5.QtCore import QThread, pyqtSignal
 mp_face_mesh = mp.solutions.face_mesh
 
 
-class FaceAngleTracker:
+class EyeTracker:
     def __init__(self, rest_threshold=10):
         self.cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
         if not self.cap.isOpened():
@@ -110,7 +110,7 @@ class EyeMonitorWorker(QThread):
         while self.running:
             start_time = time.time()
 
-            result = self.tracker.get_gaze(show_frame=True)
+            result = self.tracker.get_gaze(show_frame=False)
             if result:
                 looking, yaw, pitch = result
                 self.gaze_detected_signal.emit(looking, yaw, pitch)
@@ -124,16 +124,3 @@ class EyeMonitorWorker(QThread):
         self.running = False
         self.wait()
         print("Eye Monitor: Zatrzymano wątek roboczy.")
-
-
-if __name__ == "__main__":
-    tracker = FaceAngleTracker()
-    try:
-        while True:
-            result = tracker.get_gaze(show_frame=True)
-            if result:
-                looking, yaw, pitch = result
-                print(f"Patrzy w ekran: {looking}, Yaw: {yaw:.1f}°, Pitch: {pitch:.1f}°")
-            time.sleep(0.3)
-    except KeyboardInterrupt:
-        tracker.release()
