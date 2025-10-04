@@ -4,4 +4,6 @@ PyQt5==5.15.10              # Framework do tworzenia interfejsu użytkownika (GU
 opencv-python==4.9.0.80     # Biblioteka OpenCV do obsługi kamery i przetwarzania obrazu
 mediapipe==0.10.14          # Biblioteka Google do detekcji kluczowych punktów ciała (Pose Estimation)
 
-gTTS==2.5.4
+gTTS==2.5.4                # Google Text-to-Speech do syntezy mowy
+
+pysqlite3==0.5.4            # SQLite dla zarządzania bazą danych
