@@ -78,17 +78,17 @@ def main():
         print("⚠️  Database not found - will show placeholder data")
     
     print()
-    print("🎯 Starting with Stats section active...")
-    print("💡 Click period tiles to see different time ranges!")
-    print("🔄 All charts update with real data from database!")
+    print("🎯 Starting with Main section active...")
+    print("💡 Quick stats are now in the header!")
+    print("🔄 All content moved from main tab to header section!")
     print()
     
     # Create and show the window
     window = EnhancedWellnessWindow()
     window.show()
     
-    # Start with stats section (as requested)
-    window.switch_section("stats")
+    # Start with main section (now empty - content in header)
+    window.switch_section("main")
     
     print("📱 Enhanced wellness interface launched successfully!")
     print("🎉 Enjoy your bio-hacking wellness dashboard!")
