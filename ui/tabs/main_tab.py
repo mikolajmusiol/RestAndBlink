@@ -1,27 +1,28 @@
+# ui/tabs/main_timer_tab.py
+
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSizePolicy
 from PyQt5.QtCore import pyqtSignal, Qt, QTimer, QUrl
-from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
-from PyQt5.QtMultimediaWidgets import QVideoWidget
+from PyQt5.QtGui import QMovie
 import os
 
 class MainTab(QWidget):
-    """Zakładka główna z automatycznym timerem i odtwarzaczem wideo."""
+    """Zakładka główna z automatycznym timerem i animowanym GIF-em."""
 
     timer_finished = pyqtSignal() # Sygnał, gdy timer skończy odliczanie
 
     def __init__(self, parent=None):
-        super().__init__(parent) # POPRAWIONA LINIA TUTAJ
+        super().__init__(parent)
         self.total_time_seconds = 5 * 60  # 5 minut w sekundach
         self.current_seconds_left = self.total_time_seconds
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._update_countdown)
 
         self.setLayout(self._setup_layout())
-        self._setup_media_player()
+        self._setup_gif_player() # Zmieniona nazwa metody
 
-        # Automatyczne uruchomienie timera i odtwarzacza po inicjalizacji
+        # Automatyczne uruchomienie timera i GIF-a po inicjalizacji
         self._start_initial_countdown()
-        self.media_player.play() # Start wideo
+        self.gif_movie.start() # Start animacji GIF-a
 
     def _setup_layout(self):
         main_layout = QHBoxLayout() # Główny layout poziomy
@@ -45,55 +46,60 @@ class MainTab(QWidget):
 
         main_layout.addLayout(timer_section_layout, 1) # 1/3 szerokości dla timera
 
-        # --- Prawa sekcja: Odtwarzacz wideo ---
-        video_section_layout = QVBoxLayout()
-        video_section_layout.setAlignment(Qt.AlignCenter)
+        # --- Prawa sekcja: Odtwarzacz GIF ---
+        gif_section_layout = QVBoxLayout() # Zmieniona nazwa zmiennej
+        gif_section_layout.setAlignment(Qt.AlignCenter)
 
-        video_label = QLabel("ODTWARZACZ WIDEO") # Możesz usunąć tę etykietę, jeśli nie chcesz jej
-        video_label.setAlignment(Qt.AlignCenter)
-        video_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #555;")
+        gif_label_title = QLabel("ANIMACJA GIF") # Możesz usunąć tę etykietę, jeśli nie chcesz jej
+        gif_label_title.setAlignment(Qt.AlignCenter)
+        gif_label_title.setStyleSheet("font-size: 20px; font-weight: bold; color: #555;")
 
+        # Używamy QLabel do wyświetlania animowanego GIF-a
+        self.gif_display_label = QLabel()
+        self.gif_display_label.setAlignment(Qt.AlignCenter)
+        self.gif_display_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.gif_display_label.setMinimumSize(400, 300)
+        self.gif_display_label.setStyleSheet("background-color: black;") # Opcjonalne tło
 
-        self.video_widget = QVideoWidget()
-        self.video_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.video_widget.setMinimumSize(400, 300) # Minimalny rozmiar
+        gif_section_layout.addWidget(gif_label_title) # Możesz usunąć tę linię, jeśli nie chcesz etykiety
+        gif_section_layout.addWidget(self.gif_display_label)
+        gif_section_layout.addStretch(1) # Rozciągnij, aby GIF zajął dostępną przestrzeń
 
-        video_section_layout.addWidget(video_label) # Możesz usunąć tę linię, jeśli nie chcesz etykiety
-        video_section_layout.addWidget(self.video_widget)
-        video_section_layout.addStretch(1) # Rozciągnij, aby wideo zajęło dostępną przestrzeń
-
-        main_layout.addLayout(video_section_layout, 3) # 2/3 szerokości dla wideo
+        main_layout.addLayout(gif_section_layout, 3) # 2/3 szerokości dla GIF-a
 
         return main_layout
 
-    def _setup_media_player(self):
-        self.media_player = QMediaPlayer(self)
-        self.media_player.setVideoOutput(self.video_widget)
+    def _setup_gif_player(self): # Zmieniona nazwa metody
+        # movies_folder = "resources" # Ścieżka do folderu z GIF-em
+        gif_file = os.path.join("resources","movies","Zakrywanie powiek dłońmi.gif") # ZMIEŃ NA NAZWĘ SWOJEGO PLIKU GIF!
 
-        video_file = os.path.join("resources","movies","fast_blinking.mp4") # ZMIEŃ NA NAZWĘ SWOJEGO PLIKU!
+        self.gif_movie = QMovie(gif_file)
 
-        if os.path.exists(video_file):
-            self.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(video_file)))
+        if not self.gif_movie.isValid():
+            print(f"Błąd: Plik GIF '{gif_file}' nie jest prawidłowym plikiem GIF lub nie został znaleziony.")
+            print("Upewnij się, że masz plik GIF w folderze 'resources/movies' i zmieniono jego nazwę w kodzie.")
+            # Wyświetl pusty obraz lub komunikat o błędzie, jeśli GIF jest nieprawidłowy
+            self.gif_display_label.setText("BŁĄD: Nie znaleziono GIF-a lub jest uszkodzony.")
+            self.gif_display_label.setStyleSheet("background-color: darkred; color: white; font-size: 16px;")
         else:
-            print(f"Błąd: Plik wideo '{video_file}' nie został znaleziony.")
-            print("Upewnij się, że masz plik wideo w folderze 'movies' i zmieniono jego nazwę w kodzie.")
-            # Jeśli plik nie istnieje, możesz wyświetlić komunikat w QVideoWidget lub ustawić pusty ekran
-            # self.video_widget.setStyleSheet("background-color: black; color: white;") # Przykładowy styl
-
+            self.gif_display_label.setMovie(self.gif_movie)
+            self.gif_movie.setCacheMode(QMovie.CacheAll) # Buforowanie wszystkich klatek dla płynności
+            self.gif_movie.setSpeed(100) # 100% prędkości (normalna). Możesz dostosować
+            # self.gif_movie.start() # Zostanie uruchomione w __init__
 
     def _start_initial_countdown(self):
-        self._update_display(self.current_seconds_left) # Ustawia początkowy czas
-        self.timer.start(1000)  # Odśwież co sekundę
+        self._update_display(self.current_seconds_left)
+        self.timer.start(1000)
 
     def _update_countdown(self):
         self.current_seconds_left -= 1
         if self.current_seconds_left <= 0:
             self.current_seconds_left = 0
             self.timer.stop()
-            self.timer_finished.emit() # Wyślij sygnał, że timer skończył
-            # Tutaj możesz dodać kod, który wykona się po zakończeniu timera, np. zatrzymanie wideo
-            # self.media_player.stop()
+            self.timer_finished.emit()
             print("Timer zakończył odliczanie!")
+            # Tutaj możesz zatrzymać GIF-a, jeśli chcesz
+            # self.gif_movie.stop()
 
         self._update_display(self.current_seconds_left)
 
@@ -102,3 +108,9 @@ class MainTab(QWidget):
         seconds = seconds_left % 60
         time_str = f"{minutes:02}:{seconds:02}"
         self.current_time_label.setText(time_str)
+
+    def closeEvent(self, event):
+        """Zatrzymuje animację GIF-a przy zamykaniu okna."""
+        if self.gif_movie.state() == QMovie.Running:
+            self.gif_movie.stop()
+        super().closeEvent(event)
