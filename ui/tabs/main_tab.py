@@ -68,10 +68,6 @@ class MainTab(QWidget):
             self.status_label.setText(f"PAUZA! Patrzysz w ekran! (X:{x_angle:.1f}°)")
             self.status_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #ff6b6b;")
 
-            # Opcjonalnie: zatrzymaj GIF
-            if self.gif_movie.state() == QMovie.Running:
-                self.gif_movie.setPaused(True)
-
     def resume_break_timer(self):
         """
         Wznawia timer przerwy gdy użytkownik przestaje patrzeć w ekran.
@@ -81,10 +77,6 @@ class MainTab(QWidget):
             self.is_paused = False
             self.status_label.setText("WZNOWIONO! Kontynuuj przerwę")
             self.status_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #51cf66;")
-
-            # Opcjonalnie: wznów GIF
-            if self.gif_movie.state() == QMovie.Paused:
-                self.gif_movie.setPaused(False)
 
     def _setup_layout(self):
         main_layout = QHBoxLayout()
@@ -301,22 +293,6 @@ class MainTab(QWidget):
 
         self.current_seconds_left = self.total_time_seconds
         self._update_display(self.current_seconds_left)
-
-    def test_background_music(self):
-        """Testowa metoda do ręcznego uruchomienia muzyki w tle"""
-        print("=== TEST BACKGROUND MUSIC ===")
-        print(f"Plik muzyki: {self.background_music_path}")
-        print(f"Plik istnieje: {os.path.exists(self.background_music_path)}")
-        if os.path.exists(self.background_music_path):
-            print(f"Rozmiar pliku: {os.path.getsize(self.background_music_path)} bajtów")
-
-        print(f"Stan background player: {self.background_music_player.state()}")
-        print(f"Status background player: {self.background_music_player.mediaStatus()}")
-
-        # Bezpośrednie ustawienie i odtwarzanie
-        self.background_music_player.setMedia(QMediaContent(QUrl.fromLocalFile(self.background_music_path)))
-        self.background_music_player.play()
-        print("Manual play() wykonane.")
 
     def _start_background_music(self):
         """Uruchamia muzykę w tle w pętli."""
