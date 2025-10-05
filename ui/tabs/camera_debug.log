@@ -1785,3 +1785,6 @@
 2025-10-05 05:32:24,185 DEBUG findfont: score(FontEntry(fname='/usr/share/fonts/noto/NotoSerifLao-Light.ttf', name='Noto Serif Lao', style='normal', variant='normal', weight=300, stretch='normal', size='scalable')) = 10.145
 2025-10-05 05:32:24,185 DEBUG findfont: score(FontEntry(fname='/usr/share/fonts/noto/NotoSansOldPermic-Regular.ttf', name='Noto Sans Old Permic', style='normal', variant='normal', weight=400, stretch='normal', size='scalable')) = 10.05
 2025-10-05 05:32:24,185 DEBUG findfont: Matching sans\-serif:style=normal:variant=normal:weight=normal:stretch=normal:size=14.0 to DejaVu Sans ('/home/jaromek/Programming/miniconda3/envs/HackYeah/lib/python3.12/site-packages/matplotlib/mpl-data/fonts/ttf/DejaVuSans.ttf') with score of 0.050000.
+2025-10-05 05:39:47,857 INFO MediaPipe FaceMesh initialized successfully
+2025-10-05 05:40:04,620 INFO MediaPipe FaceMesh initialized successfully
+2025-10-05 05:41:25,922 INFO MediaPipe FaceMesh initialized successfully
