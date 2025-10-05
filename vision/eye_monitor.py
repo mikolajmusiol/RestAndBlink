@@ -117,7 +117,7 @@ class EyeMonitorWorker(QThread):
             start_time = time.time()
 
             if self.is_tracking_enabled:
-                result = self.tracker.get_gaze(show_frame=True)
+                result = self.tracker.get_gaze(show_frame=False)
                 if result:
                     looking, yaw, pitch = result
                     self.gaze_detected_signal.emit(looking, yaw, pitch)
