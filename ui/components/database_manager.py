@@ -1,6 +1,3 @@
-# ui/components/database_manager.py
-"""Database operations for the wellness application."""
-
 import sqlite3
 import json
 from datetime import datetime, timedelta
@@ -114,49 +111,34 @@ class DatabaseManager:
             today = datetime.now()
             
             if period == "daily":
-                # Sprawdź dzisiejsze dane
-                cursor.execute("""
-                    SELECT heartbeat_data, total_time_seconds, score, timestamp
-                    FROM Sessions 
-                    WHERE user_id = ? AND DATE(timestamp) = DATE('now', 'localtime')
-                    AND heartbeat_data IS NOT NULL AND heartbeat_data != ''
-                    ORDER BY timestamp
-                """, (user_id,))
-                
+                start_date = today.strftime('%Y-%m-%d')
+                end_date = start_date
+                print(f"🔍 DEBUG Daily: start_date={start_date}, end_date={end_date}")
             elif period == "weekly":
-                # Ostatnie 7 dni
-                cursor.execute("""
-                    SELECT heartbeat_data, total_time_seconds, score, timestamp
-                    FROM Sessions 
-                    WHERE user_id = ? AND DATE(timestamp) >= DATE('now', 'localtime', '-7 days')
-                    AND heartbeat_data IS NOT NULL AND heartbeat_data != ''
-                    ORDER BY timestamp
-                """, (user_id,))
-                
+                start_of_week = today - timedelta(days=today.weekday())
+                start_date = start_of_week.strftime('%Y-%m-%d')
+                end_date = (start_of_week + timedelta(days=6)).strftime('%Y-%m-%d')
             elif period == "monthly":
-                # Ostatnie 30 dni
-                cursor.execute("""
-                    SELECT heartbeat_data, total_time_seconds, score, timestamp
-                    FROM Sessions 
-                    WHERE user_id = ? AND DATE(timestamp) >= DATE('now', 'localtime', '-30 days')
-                    AND heartbeat_data IS NOT NULL AND heartbeat_data != ''
-                    ORDER BY timestamp
-                """, (user_id,))
-                
+                start_date = today.replace(day=1).strftime('%Y-%m-%d')
+                end_date = today.strftime('%Y-%m-%d')
             else:  # alltime
-                cursor.execute("""
-                    SELECT heartbeat_data, total_time_seconds, score, timestamp
-                    FROM Sessions 
-                    WHERE user_id = ?
-                    AND heartbeat_data IS NOT NULL AND heartbeat_data != ''
-                    ORDER BY timestamp
-                """, (user_id,))
+                start_date = "2000-01-01"
+                end_date = today.strftime('%Y-%m-%d')
+            
+            # Get sessions with heartbeat data
+            cursor.execute("""
+                SELECT heartbeat_data, total_time_seconds, score, timestamp
+                FROM Sessions 
+                WHERE user_id = ? AND DATE(timestamp) BETWEEN ? AND ?
+                ORDER BY timestamp
+            """, (user_id, start_date, end_date))
             
             sessions = cursor.fetchall()
             conn.close()
             
-            print(f"🔍 Period: {period}, User: {user_id}, Found sessions: {len(sessions)}")
-
+            print(f"🔍 Found {len(sessions)} sessions for period '{period}'")
+            if sessions:
+                print(f"🔍 First session heartbeat_data: {repr(sessions[0][0])}")
             
             if not sessions:
                 return []
@@ -165,25 +147,54 @@ class DatabaseManager:
             
             for session in sessions[:20]:  # Limit to first 20 sessions for performance
                 try:
-                    heartbeat_json = json.loads(session[0])
-                    heartbeats = heartbeat_json.get('heartbeats', [])
-                    stress_levels = heartbeat_json.get('stress_levels', [])
+                    if session[0] is None:
+                        # Jeśli heartbeat_data to None, użyj domyślnych wartości
+                        avg_heartbeat = 0
+                        avg_stress = 0
+                    else:
+                        # PARSUJ JAKO CSV ZAMIAST JSON
+                        heartbeat_data_str = session[0]
+                        try:
+                            # Spróbuj najpierw jako JSON (dla starych danych)
+                            heartbeat_json = json.loads(heartbeat_data_str)
+                            heartbeats = heartbeat_json.get('heartbeats', [])
+                            stress_levels = heartbeat_json.get('stress_levels', [])
+                            
+                            if heartbeats and stress_levels:
+                                avg_heartbeat = sum(heartbeats) / len(heartbeats)
+                                avg_stress = sum(stress_levels) / len(stress_levels)
+                            else:
+                                avg_heartbeat = 0
+                                avg_stress = 0
+                        except json.JSONDecodeError:
+                            # Parsuj jako CSV (dla nowych danych)
+                            heartbeats = [float(x.strip()) for x in heartbeat_data_str.split(',') if x.strip()]
+                            if heartbeats:
+                                avg_heartbeat = sum(heartbeats) / len(heartbeats)
+                                # Oblicz stress na podstawie zmienności tętna
+                                heartbeat_var = sum((h - avg_heartbeat) ** 2 for h in heartbeats) / len(heartbeats)
+                                avg_stress = min(100, max(0, heartbeat_var * 2)) / 100  # Scale to 0-1
+                            else:
+                                avg_heartbeat = 0
+                                avg_stress = 0
                     
-                    if heartbeats and stress_levels:
-                        # Take average values for this session
-                        avg_heartbeat = sum(heartbeats) / len(heartbeats)
-                        avg_stress = sum(stress_levels) / len(stress_levels)
-                        
-                        chart_data.append({
-                            'heartbeat': avg_heartbeat,
-                            'stress': avg_stress,
-                            'duration': session[1],
-                            'score': session[2],
-                            'timestamp': session[3]
-                        })
-                        
+                    chart_data.append({
+                        'heartbeat': avg_heartbeat,
+                        'stress': avg_stress,
+                        'duration': session[1],
+                        'score': session[2],
+                        'timestamp': session[3]
+                    })
+                            
                 except (json.JSONDecodeError, TypeError):
-                    continue
+                    # Jeśli błąd parsowania, użyj zer
+                    chart_data.append({
+                        'heartbeat': 0,
+                        'stress': 0,
+                        'duration': session[1],
+                        'score': session[2],
+                        'timestamp': session[3]
+                    })
             
             return chart_data
             
