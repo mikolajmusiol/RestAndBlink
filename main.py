@@ -94,17 +94,17 @@ class ApplicationController:
 
     def start_break_session(self):
         """
-        Rozpoczyna sesję przerwy. Wywoływane po kliknięciu powiadomienia.
-        Aktywuje: Tryb Przerwy, Okno Ustawień, Timer Przerwy, Monitor Wzroku.
+        Rozpoczyna sesję przerwy.
+        Aktywuje: Tryb Przerwy, Okno Ustawień, Timer Przerwy, WŁĄCZA ŚLEDZENIE WZROKU W WĄTKU.
         """
         print("Rozpoczynanie sesji przerwy...")
         self.current_state = self.STATE_BREAK
         self.tray_icon.setToolTip("Break Reminder: Jesteś na PRZERWIE!")
 
-        # 1. Uruchom monitor wzroku
+        # 1. Zmień stan w wątku Vision, aby zaczął przetwarzać
         if self.eye_monitor_worker:
-            self.eye_monitor_worker.start()
-            print("Eye Monitor: Wątek uruchomiony do śledzenia przerwy.")
+            self.eye_monitor_worker.set_tracking_enabled(True)  # NOWOŚĆ!
+            print("Eye Monitor: Wątek AKTYWOWANY do śledzenia przerwy.")
 
         # 2. Otwórz i aktywuj okno z timerem przerwy
         self.settings_window.show()
@@ -112,16 +112,17 @@ class ApplicationController:
 
     def start_work_session(self):
         """
-        Rozpoczyna sesję pracy. Wywoływane po zakończeniu timera przerwy.
-        Aktywuje: Tryb Pracy, Główny Timer, Zatrzymuje Monitor Wzroku.
+        Rozpoczyna sesję pracy.
+        Aktywuje: Tryb Pracy, Główny Timer, WYŁĄCZA ŚLEDZENIE WZROKU W WĄTKU.
         """
         print("Wznawianie sesji pracy...")
         self.current_state = self.STATE_WORKING
         self.tray_icon.setToolTip("Break Reminder: Pracuję...")
 
-        # 1. Zatrzymanie wątku Vision
+        # 1. Zmień stan w wątku Vision, aby przestał przetwarzać (lub ignorował wyniki)
         if self.eye_monitor_worker and self.eye_monitor_worker.isRunning():
-            self.eye_monitor_worker.stop()
+            self.eye_monitor_worker.set_tracking_enabled(False)  # NOWOŚĆ!
+            print("Eye Monitor: Wątek ZAWIESZONY/WYŁĄCZONY (czeka).")
 
         # 2. Wznów główny timer pracy
         self._start_main_timer()
@@ -152,14 +153,22 @@ class ApplicationController:
 
     def _start_main_timer(self):
         """Uruchamia główny timer pracy."""
-        self.resume_main_timer()  # Wznowienie lub rozpoczęcie
+        self.resume_main_timer()
+
+        # Uruchamiamy wątek monitora tylko raz na starcie aplikacji.
+        if self.eye_monitor_worker:
+            self.eye_monitor_worker.start()
+            self.eye_monitor_worker.set_tracking_enabled(False)  # Początkowo wyłączony
+            print("Eye Monitor: Wątek uruchomiony (w tle, wyłączony).")
+        else:
+            print("Eye Monitor: Wątek nie uruchomiony (brak kamery).")
 
     def exit_application(self):
         """Bezpiecznie zamyka aplikację, wątek i zwalnia zasoby kamery."""
         print("Zamykanie aplikacji...")
 
-        # 1. Zatrzymanie wątku Vision
-        if self.eye_monitor_worker:
+        # 1. Zatrzymanie wątku Vision (tutaj musi być stop, by zamknąć wątek)
+        if self.eye_monitor_worker and self.eye_monitor_worker.isRunning():
             self.eye_monitor_worker.stop()
 
         # 2. Zwolnienie zasobów EyeTracker
