@@ -682,11 +682,10 @@ class ApplicationController:
         
         # Sprawdź czy są rzeczywiste dane tętna
         if not self.session_heartbeat_data or len(self.session_heartbeat_data) == 0:
-            print("Brak danych tętna - sesja nie zostanie zapisana")
+            print("Brak danych tętna - tętno nie zostanie zapisane")
             # Wyczyść dane sesji
             self.session_start_time = None
-            self.session_heartbeat_data = []
-            self.session_time_intervals = []
+            self.session_heartbeat_data = [0]
             self.session_stress_level = 0.0
             return
         
@@ -706,7 +705,6 @@ class ApplicationController:
                 points=points,
                 exercise_type='break'
             )
-            
             print(f"Sesja odpoczynku zapisana:")
             print(f"   - ID sesji: {session_id}")
             print(f"   - Czas trwania: {sum(time_intervals):.1f}s")
