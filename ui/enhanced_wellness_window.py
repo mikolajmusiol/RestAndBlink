@@ -181,7 +181,7 @@ class EnhancedWellnessWindow(QMainWindow):
         self.setCentralWidget(central_widget)
         
         main_layout = QVBoxLayout(central_widget)
-        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setContentsMargins(0, 25, 0, 0)  # Zwiększamy margines na górze do 25px
         main_layout.setSpacing(0)
         
         # Top header section
@@ -202,11 +202,11 @@ class EnhancedWellnessWindow(QMainWindow):
     def create_header(self, parent_layout):
         """Create the top header with logo and user info."""
         header_widget = QWidget()
-        header_widget.setFixedHeight(80)
+        header_widget.setFixedHeight(110)  # Jeszcze większa wysokość
         header_widget.setStyleSheet("background-color: #1a1d1f; border-bottom: 1px solid #404448;")
         
         header_layout = QHBoxLayout(header_widget)
-        header_layout.setContentsMargins(30, 20, 30, 20)
+        header_layout.setContentsMargins(30, 20, 30, 20)  # Jeszcze więcej marginesu na górze i dole
         
         # Left side - Logo
         logo_label = QLabel("Rest&Blink")
@@ -214,28 +214,6 @@ class EnhancedWellnessWindow(QMainWindow):
         logo_label.setStyleSheet("color: #7cb9e8; border: none;")
         header_layout.addWidget(logo_label)
         
-        # Left spacer to center the stats
-        header_layout.addStretch(1)
-
-        # Middle - Centered Quick stats cards
-        quick_stats_widget = QWidget()
-        quick_stats_layout = QHBoxLayout(quick_stats_widget)
-        quick_stats_layout.setContentsMargins(0, 0, 0, 0)
-        quick_stats_layout.setSpacing(15)
-
-        # Today's sessions card
-        today_card = self.create_quick_stat_card("Today's Sessions", "8", "#7cb9e8")
-        current_streak_card = self.create_quick_stat_card("Current Streak", f"{self.user_data.get('level', 1)} days", "#90e0ef")
-        total_time_card = self.create_quick_stat_card("Total Time", "12h 15m", "#a8dadc")
-
-        quick_stats_layout.addWidget(today_card)
-        quick_stats_layout.addWidget(current_streak_card)
-        quick_stats_layout.addWidget(total_time_card)
-
-        header_layout.addWidget(quick_stats_widget)
-
-        # Right spacer to center the stats
-        header_layout.addStretch(1)
         # Left spacer to center the stats
         header_layout.addStretch(1)
 
@@ -1055,55 +1033,44 @@ class EnhancedWellnessWindow(QMainWindow):
         return earned_achievements, all_achievements
 
     def create_quick_stat_card(self, title, value, color):
-        """Create a quick stat card without borders."""
+        """Create a simple, clean quick stat card."""
         card = QFrame()
-        card.setFrameStyle(QFrame.NoFrame)  # Remove frame
-
-        # Smaller, more reasonable size
-        card.setFixedSize(180, 70)
-        card.setMinimumSize(180, 70)
+        card.setFrameStyle(QFrame.NoFrame)
         
-        # Simple card style without borders
+        # Standard size that works well
+        card.setFixedSize(180, 75)
+        
+        # Clean, simple styling
         card.setStyleSheet("""
             QFrame {
                 background-color: #232629;
                 border: none;
                 border-radius: 8px;
-                padding: 8px;
             }
             QFrame:hover {
                 background-color: #2a2d30;
             }
         """)
 
-        # Use a simple vertical layout with tight spacing
+        # Simple layout with reasonable margins
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(2)
+        layout.setContentsMargins(10, 12, 10, 10)
+        layout.setSpacing(5)
         
-        # Title label - small and compact
+        # Title label
         title_label = QLabel(title)
-        title_label.setFont(QFont("Segoe UI", 9, QFont.Medium))
-        title_label.setStyleSheet(f"color: {color}; background: transparent; margin: 0px; padding: 0px;")
+        title_label.setFont(QFont("Segoe UI", 9))
+        title_label.setStyleSheet(f"color: {color}; background: transparent;")
         title_label.setWordWrap(True)
-        title_label.setAlignment(Qt.AlignCenter)
-        title_label.setMaximumHeight(18)
-        title_label.setFont(QFont("Segoe UI", 9, QFont.Medium))
-        title_label.setStyleSheet(f"color: {color}; background: transparent; margin: 0px; padding: 0px;")
-        title_label.setWordWrap(True)
-        title_label.setAlignment(Qt.AlignCenter)
-        title_label.setMaximumHeight(18)
-
-        # Value label - smaller to fit
+        
+        # Value label
         value_label = QLabel(value)
         value_label.setFont(QFont("Segoe UI", 12, QFont.Bold))
-        value_label.setStyleSheet("color: #e8e9ea; background: transparent; margin: 0px; padding: 0px;")
-        value_label.setAlignment(Qt.AlignCenter)
-        value_label.setMinimumHeight(25)
+        value_label.setStyleSheet("color: #e8e9ea; background: transparent;")
         
         layout.addWidget(title_label)
         layout.addWidget(value_label)
-        layout.addStretch()  # Push content to top
+        layout.addStretch()
         
         return card
     

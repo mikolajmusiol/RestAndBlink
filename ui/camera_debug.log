@@ -17184,3 +17184,113 @@
 2025-10-05 03:58:37,468 DEBUG findfont: Matching sans\-serif:style=normal:variant=normal:weight=normal:stretch=normal:size=14.0 to DejaVu Sans ('/home/jaromek/Programming/miniconda3/envs/HackYeah/lib/python3.12/site-packages/matplotlib/mpl-data/fonts/ttf/DejaVuSans.ttf') with score of 0.050000.
 2025-10-05 03:58:40,648 INFO Starting camera calibration
 2025-10-05 03:58:40,648 ERROR Camera initialization failed
+2025-10-05 04:01:38,585 DEBUG matplotlib data path: /home/jaromek/Programming/miniconda3/envs/HackYeah/lib/python3.12/site-packages/matplotlib/mpl-data
+2025-10-05 04:01:38,589 DEBUG CONFIGDIR=/home/jaromek/.config/matplotlib
+2025-10-05 04:01:38,590 DEBUG interactive is False
+2025-10-05 04:01:38,590 DEBUG platform is linux
+2025-10-05 04:01:38,641 DEBUG CACHEDIR=/home/jaromek/.cache/matplotlib
+2025-10-05 04:01:38,646 DEBUG Using fontManager instance from /home/jaromek/.cache/matplotlib/fontlist-v390.json
+2025-10-05 04:01:39,199 INFO MediaPipe FaceMesh initialized successfully
+2025-10-05 04:02:57,942 DEBUG matplotlib data path: /home/jaromek/Programming/miniconda3/envs/HackYeah/lib/python3.12/site-packages/matplotlib/mpl-data
+2025-10-05 04:02:57,947 DEBUG CONFIGDIR=/home/jaromek/.config/matplotlib
+2025-10-05 04:02:57,948 DEBUG interactive is False
+2025-10-05 04:02:57,948 DEBUG platform is linux
+2025-10-05 04:02:57,999 DEBUG CACHEDIR=/home/jaromek/.cache/matplotlib
+2025-10-05 04:02:58,004 DEBUG Using fontManager instance from /home/jaromek/.cache/matplotlib/fontlist-v390.json
+2025-10-05 04:02:58,546 INFO MediaPipe FaceMesh initialized successfully
+2025-10-05 04:03:46,392 DEBUG matplotlib data path: /home/jaromek/Programming/miniconda3/envs/HackYeah/lib/python3.12/site-packages/matplotlib/mpl-data
+2025-10-05 04:03:46,396 DEBUG CONFIGDIR=/home/jaromek/.config/matplotlib
+2025-10-05 04:03:46,397 DEBUG interactive is False
+2025-10-05 04:03:46,397 DEBUG platform is linux
+2025-10-05 04:03:46,450 DEBUG CACHEDIR=/home/jaromek/.cache/matplotlib
+2025-10-05 04:03:46,455 DEBUG Using fontManager instance from /home/jaromek/.cache/matplotlib/fontlist-v390.json
+2025-10-05 04:03:47,044 INFO MediaPipe FaceMesh initialized successfully
+2025-10-05 04:03:58,159 DEBUG matplotlib data path: /home/jaromek/Programming/miniconda3/envs/HackYeah/lib/python3.12/site-packages/matplotlib/mpl-data
+2025-10-05 04:03:58,164 DEBUG CONFIGDIR=/home/jaromek/.config/matplotlib
+2025-10-05 04:03:58,165 DEBUG interactive is False
+2025-10-05 04:03:58,165 DEBUG platform is linux
+2025-10-05 04:03:58,225 DEBUG CACHEDIR=/home/jaromek/.cache/matplotlib
+2025-10-05 04:03:58,231 DEBUG Using fontManager instance from /home/jaromek/.cache/matplotlib/fontlist-v390.json
+2025-10-05 04:03:58,820 INFO MediaPipe FaceMesh initialized successfully
+2025-10-05 04:05:06,960 DEBUG matplotlib data path: /home/jaromek/Programming/miniconda3/envs/HackYeah/lib/python3.12/site-packages/matplotlib/mpl-data
+2025-10-05 04:05:06,964 DEBUG CONFIGDIR=/home/jaromek/.config/matplotlib
+2025-10-05 04:05:06,965 DEBUG interactive is False
+2025-10-05 04:05:06,966 DEBUG platform is linux
+2025-10-05 04:05:07,017 DEBUG CACHEDIR=/home/jaromek/.cache/matplotlib
+2025-10-05 04:05:07,023 DEBUG Using fontManager instance from /home/jaromek/.cache/matplotlib/fontlist-v390.json
+2025-10-05 04:06:55,825 DEBUG matplotlib data path: /home/jaromek/Programming/miniconda3/envs/HackYeah/lib/python3.12/site-packages/matplotlib/mpl-data
+2025-10-05 04:06:55,829 DEBUG CONFIGDIR=/home/jaromek/.config/matplotlib
+2025-10-05 04:06:55,830 DEBUG interactive is False
+2025-10-05 04:06:55,830 DEBUG platform is linux
+2025-10-05 04:06:55,880 DEBUG CACHEDIR=/home/jaromek/.cache/matplotlib
+2025-10-05 04:06:55,886 DEBUG Using fontManager instance from /home/jaromek/.cache/matplotlib/fontlist-v390.json
+2025-10-05 04:06:56,442 INFO MediaPipe FaceMesh initialized successfully
+2025-10-05 04:09:07,750 DEBUG matplotlib data path: /home/jaromek/Programming/miniconda3/envs/HackYeah/lib/python3.12/site-packages/matplotlib/mpl-data
+2025-10-05 04:09:07,754 DEBUG CONFIGDIR=/home/jaromek/.config/matplotlib
+2025-10-05 04:09:07,755 DEBUG interactive is False
+2025-10-05 04:09:07,755 DEBUG platform is linux
+2025-10-05 04:09:07,806 DEBUG CACHEDIR=/home/jaromek/.cache/matplotlib
+2025-10-05 04:09:07,811 DEBUG Using fontManager instance from /home/jaromek/.cache/matplotlib/fontlist-v390.json
+2025-10-05 04:09:08,381 INFO MediaPipe FaceMesh initialized successfully
+2025-10-05 04:10:20,847 DEBUG matplotlib data path: /home/jaromek/Programming/miniconda3/envs/HackYeah/lib/python3.12/site-packages/matplotlib/mpl-data
+2025-10-05 04:10:20,851 DEBUG CONFIGDIR=/home/jaromek/.config/matplotlib
+2025-10-05 04:10:20,852 DEBUG interactive is False
+2025-10-05 04:10:20,852 DEBUG platform is linux
+2025-10-05 04:10:20,903 DEBUG CACHEDIR=/home/jaromek/.cache/matplotlib
+2025-10-05 04:10:20,908 DEBUG Using fontManager instance from /home/jaromek/.cache/matplotlib/fontlist-v390.json
+2025-10-05 04:10:21,525 INFO MediaPipe FaceMesh initialized successfully
+2025-10-05 04:11:31,436 DEBUG matplotlib data path: /home/jaromek/Programming/miniconda3/envs/HackYeah/lib/python3.12/site-packages/matplotlib/mpl-data
+2025-10-05 04:11:31,440 DEBUG CONFIGDIR=/home/jaromek/.config/matplotlib
+2025-10-05 04:11:31,441 DEBUG interactive is False
+2025-10-05 04:11:31,441 DEBUG platform is linux
+2025-10-05 04:11:31,490 DEBUG CACHEDIR=/home/jaromek/.cache/matplotlib
+2025-10-05 04:11:31,495 DEBUG Using fontManager instance from /home/jaromek/.cache/matplotlib/fontlist-v390.json
+2025-10-05 04:11:32,055 INFO MediaPipe FaceMesh initialized successfully
+2025-10-05 04:12:33,243 DEBUG matplotlib data path: /home/jaromek/Programming/miniconda3/envs/HackYeah/lib/python3.12/site-packages/matplotlib/mpl-data
+2025-10-05 04:12:33,247 DEBUG CONFIGDIR=/home/jaromek/.config/matplotlib
+2025-10-05 04:12:33,248 DEBUG interactive is False
+2025-10-05 04:12:33,248 DEBUG platform is linux
+2025-10-05 04:12:33,300 DEBUG CACHEDIR=/home/jaromek/.cache/matplotlib
+2025-10-05 04:12:33,304 DEBUG Using fontManager instance from /home/jaromek/.cache/matplotlib/fontlist-v390.json
+2025-10-05 04:12:33,855 INFO MediaPipe FaceMesh initialized successfully
+2025-10-05 04:13:21,658 DEBUG matplotlib data path: /home/jaromek/Programming/miniconda3/envs/HackYeah/lib/python3.12/site-packages/matplotlib/mpl-data
+2025-10-05 04:13:21,663 DEBUG CONFIGDIR=/home/jaromek/.config/matplotlib
+2025-10-05 04:13:21,664 DEBUG interactive is False
+2025-10-05 04:13:21,664 DEBUG platform is linux
+2025-10-05 04:13:21,718 DEBUG CACHEDIR=/home/jaromek/.cache/matplotlib
+2025-10-05 04:13:21,724 DEBUG Using fontManager instance from /home/jaromek/.cache/matplotlib/fontlist-v390.json
+2025-10-05 04:13:22,280 INFO MediaPipe FaceMesh initialized successfully
+2025-10-05 04:13:46,793 DEBUG matplotlib data path: /home/jaromek/Programming/miniconda3/envs/HackYeah/lib/python3.12/site-packages/matplotlib/mpl-data
+2025-10-05 04:13:46,798 DEBUG CONFIGDIR=/home/jaromek/.config/matplotlib
+2025-10-05 04:13:46,799 DEBUG interactive is False
+2025-10-05 04:13:46,799 DEBUG platform is linux
+2025-10-05 04:13:46,855 DEBUG CACHEDIR=/home/jaromek/.cache/matplotlib
+2025-10-05 04:13:46,862 DEBUG Using fontManager instance from /home/jaromek/.cache/matplotlib/fontlist-v390.json
+2025-10-05 04:13:47,481 INFO MediaPipe FaceMesh initialized successfully
+2025-10-05 04:14:12,800 DEBUG matplotlib data path: /home/jaromek/Programming/miniconda3/envs/HackYeah/lib/python3.12/site-packages/matplotlib/mpl-data
+2025-10-05 04:14:12,804 DEBUG CONFIGDIR=/home/jaromek/.config/matplotlib
+2025-10-05 04:14:12,805 DEBUG interactive is False
+2025-10-05 04:14:12,805 DEBUG platform is linux
+2025-10-05 04:14:12,859 DEBUG CACHEDIR=/home/jaromek/.cache/matplotlib
+2025-10-05 04:14:12,864 DEBUG Using fontManager instance from /home/jaromek/.cache/matplotlib/fontlist-v390.json
+2025-10-05 04:14:13,458 INFO MediaPipe FaceMesh initialized successfully
+2025-10-05 04:14:24,749 DEBUG matplotlib data path: /home/jaromek/Programming/miniconda3/envs/HackYeah/lib/python3.12/site-packages/matplotlib/mpl-data
+2025-10-05 04:14:24,755 DEBUG CONFIGDIR=/home/jaromek/.config/matplotlib
+2025-10-05 04:14:24,756 DEBUG interactive is False
+2025-10-05 04:14:24,756 DEBUG platform is linux
+2025-10-05 04:14:24,828 DEBUG CACHEDIR=/home/jaromek/.cache/matplotlib
+2025-10-05 04:14:24,835 DEBUG Using fontManager instance from /home/jaromek/.cache/matplotlib/fontlist-v390.json
+2025-10-05 04:14:28,647 DEBUG matplotlib data path: /home/jaromek/Programming/miniconda3/envs/HackYeah/lib/python3.12/site-packages/matplotlib/mpl-data
+2025-10-05 04:14:28,651 DEBUG CONFIGDIR=/home/jaromek/.config/matplotlib
+2025-10-05 04:14:28,652 DEBUG interactive is False
+2025-10-05 04:14:28,652 DEBUG platform is linux
+2025-10-05 04:14:28,706 DEBUG CACHEDIR=/home/jaromek/.cache/matplotlib
+2025-10-05 04:14:28,711 DEBUG Using fontManager instance from /home/jaromek/.cache/matplotlib/fontlist-v390.json
+2025-10-05 04:14:29,317 INFO MediaPipe FaceMesh initialized successfully
+2025-10-05 04:14:49,292 DEBUG matplotlib data path: /home/jaromek/Programming/miniconda3/envs/HackYeah/lib/python3.12/site-packages/matplotlib/mpl-data
+2025-10-05 04:14:49,296 DEBUG CONFIGDIR=/home/jaromek/.config/matplotlib
+2025-10-05 04:14:49,298 DEBUG interactive is False
+2025-10-05 04:14:49,298 DEBUG platform is linux
+2025-10-05 04:14:49,356 DEBUG CACHEDIR=/home/jaromek/.cache/matplotlib
+2025-10-05 04:14:49,362 DEBUG Using fontManager instance from /home/jaromek/.cache/matplotlib/fontlist-v390.json
+2025-10-05 04:14:49,946 INFO MediaPipe FaceMesh initialized successfully
