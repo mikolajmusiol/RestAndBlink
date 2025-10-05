@@ -6,7 +6,7 @@ from PyQt5.QtCore import QTimer, QCoreApplication
 
 # Importujemy moduły UI
 from ui.tray_icon import BreakReminderTrayIcon
-from ui.enhanced_wellness_window import EnhancedWellnessWindow
+from ui.enhanced_wellness_window_new import EnhancedWellnessWindow
 from vision.eye_monitor import EyeMonitorWorker, EyeTracker
 import cv2
 import mediapipe as mp
