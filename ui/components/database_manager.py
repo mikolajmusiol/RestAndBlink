@@ -114,30 +114,49 @@ class DatabaseManager:
             today = datetime.now()
             
             if period == "daily":
-                start_date = today.strftime('%Y-%m-%d')
-                end_date = start_date
+                # Sprawdź dzisiejsze dane
+                cursor.execute("""
+                    SELECT heartbeat_data, total_time_seconds, score, timestamp
+                    FROM Sessions 
+                    WHERE user_id = ? AND DATE(timestamp) = DATE('now', 'localtime')
+                    AND heartbeat_data IS NOT NULL AND heartbeat_data != ''
+                    ORDER BY timestamp
+                """, (user_id,))
+                
             elif period == "weekly":
-                start_of_week = today - timedelta(days=today.weekday())
-                start_date = start_of_week.strftime('%Y-%m-%d')
-                end_date = (start_of_week + timedelta(days=6)).strftime('%Y-%m-%d')
+                # Ostatnie 7 dni
+                cursor.execute("""
+                    SELECT heartbeat_data, total_time_seconds, score, timestamp
+                    FROM Sessions 
+                    WHERE user_id = ? AND DATE(timestamp) >= DATE('now', 'localtime', '-7 days')
+                    AND heartbeat_data IS NOT NULL AND heartbeat_data != ''
+                    ORDER BY timestamp
+                """, (user_id,))
+                
             elif period == "monthly":
-                start_date = today.replace(day=1).strftime('%Y-%m-%d')
-                end_date = today.strftime('%Y-%m-%d')
+                # Ostatnie 30 dni
+                cursor.execute("""
+                    SELECT heartbeat_data, total_time_seconds, score, timestamp
+                    FROM Sessions 
+                    WHERE user_id = ? AND DATE(timestamp) >= DATE('now', 'localtime', '-30 days')
+                    AND heartbeat_data IS NOT NULL AND heartbeat_data != ''
+                    ORDER BY timestamp
+                """, (user_id,))
+                
             else:  # alltime
-                start_date = "2000-01-01"
-                end_date = today.strftime('%Y-%m-%d')
-            
-            # Get sessions with heartbeat data
-            cursor.execute("""
-                SELECT heartbeat_data, total_time_seconds, score, timestamp
-                FROM Sessions 
-                WHERE user_id = ? AND DATE(timestamp) BETWEEN ? AND ?
-                AND heartbeat_data IS NOT NULL AND heartbeat_data != ''
-                ORDER BY timestamp
-            """, (user_id, start_date, end_date))
+                cursor.execute("""
+                    SELECT heartbeat_data, total_time_seconds, score, timestamp
+                    FROM Sessions 
+                    WHERE user_id = ?
+                    AND heartbeat_data IS NOT NULL AND heartbeat_data != ''
+                    ORDER BY timestamp
+                """, (user_id,))
             
             sessions = cursor.fetchall()
             conn.close()
+            
+            print(f"🔍 Period: {period}, User: {user_id}, Found sessions: {len(sessions)}")
+
             
             if not sessions:
                 return []

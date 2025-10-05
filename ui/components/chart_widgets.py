@@ -1,6 +1,3 @@
-# ui/components/chart_widgets.py
-"""Chart widgets for displaying statistical data."""
-
 import matplotlib.pyplot as plt
 try:
     from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
