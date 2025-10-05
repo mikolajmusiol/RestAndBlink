@@ -260,9 +260,24 @@ class ApplicationController:
         timer_section_layout = QVBoxLayout()
         timer_section_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
+        # BPM label placed above the timer display - make it prominent
+        self.bpm_label = QLabel("BPM: --")
+        self.bpm_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.bpm_label.setStyleSheet("""
+            font-size: 24px; 
+            font-weight: bold; 
+            color: #00ff88; 
+            background-color: rgba(0, 255, 136, 0.1);
+            border: 2px solid #00ff88;
+            border-radius: 8px;
+            padding: 8px;
+            margin: 5px;
+        """)
+
         self.status_label = QLabel("CZAS DO KOŃCA PRZERWY")
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.status_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #e8e9ea;")
+
 
         self.current_time_label = QLabel("05:00")
         self.current_time_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -274,6 +289,7 @@ class ApplicationController:
         self.gaze_status_label.setStyleSheet("font-size: 16px; color: #ffd700; margin: 10px;")
 
         timer_section_layout.addStretch(1)
+        timer_section_layout.addWidget(self.bpm_label)
         timer_section_layout.addWidget(self.status_label)
         timer_section_layout.addWidget(self.current_time_label)
         timer_section_layout.addWidget(self.gaze_status_label)
@@ -285,17 +301,12 @@ class ApplicationController:
         gif_section_layout = QVBoxLayout()
         gif_section_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        gif_label_title = QLabel("ANIMACJA GIF")
-        gif_label_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        gif_label_title.setStyleSheet("font-size: 20px; font-weight: bold; color: #e8e9ea;")
-
         self.gif_display_label = QLabel()
         self.gif_display_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.gif_display_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.gif_display_label.setMinimumSize(400, 300)
         self.gif_display_label.setStyleSheet("background-color: black;")
 
-        gif_section_layout.addWidget(gif_label_title)
         gif_section_layout.addWidget(self.gif_display_label)
         gif_section_layout.addStretch(1)
 
@@ -424,6 +435,24 @@ class ApplicationController:
             print("Zawartość kafelka Main została zastąpiona")
         else:
             print("BŁĄD: Nie można znaleźć content_stack w Enhanced Wellness Window")
+
+    def set_bpm(self, bpm):
+        """Ustawia wartość BPM widoczną nad timerem.
+        
+        Przekazanie None ustawi tekst na '--'.
+        """
+        try:
+            if hasattr(self, 'bpm_label') and self.bpm_label is not None:
+                if bpm is None:
+                    text = "BPM: --"
+                else:
+                    try:
+                        text = f"BPM: {int(bpm)}"
+                    except Exception:
+                        text = "BPM: --"
+                self.bpm_label.setText(text)
+        except Exception as e:
+            print(f"Failed to set BPM label: {e}")
 
     def run(self):
         """Uruchamia pętlę zdarzeń aplikacji."""
