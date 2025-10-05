@@ -1802,3 +1802,14 @@
 2025-10-05 02:18:39,299 DEBUG CACHEDIR=/home/jaromek/.cache/matplotlib
 2025-10-05 02:18:39,303 DEBUG Using fontManager instance from /home/jaromek/.cache/matplotlib/fontlist-v390.json
 2025-10-05 02:18:39,777 INFO MediaPipe FaceMesh initialized successfully
+2025-10-05 02:24:51,312 DEBUG matplotlib data path: /home/jaromek/Programming/miniconda3/envs/HackYeah/lib/python3.12/site-packages/matplotlib/mpl-data
+2025-10-05 02:24:51,317 DEBUG CONFIGDIR=/home/jaromek/.config/matplotlib
+2025-10-05 02:24:51,319 DEBUG interactive is False
+2025-10-05 02:24:51,319 DEBUG platform is linux
+2025-10-05 02:24:51,379 DEBUG CACHEDIR=/home/jaromek/.cache/matplotlib
+2025-10-05 02:24:51,387 DEBUG Using fontManager instance from /home/jaromek/.cache/matplotlib/fontlist-v390.json
+2025-10-05 02:24:51,865 INFO MediaPipe FaceMesh initialized successfully
+2025-10-05 02:24:54,988 INFO Starting camera calibration
+2025-10-05 02:24:54,988 ERROR Camera initialization failed
+2025-10-05 02:24:57,522 INFO Starting camera calibration
+2025-10-05 02:24:57,523 ERROR Camera initialization failed
