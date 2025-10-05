@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                             QLabel, QPushButton, QStackedWidget, QFrame, QGridLayout,
                             QScrollArea, QDesktopWidget)
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QFont
 
 # Import our modular components
@@ -32,6 +32,10 @@ logging.getLogger().addHandler(logging.StreamHandler())
 
 class EnhancedWellnessWindow(QMainWindow):
     """Enhanced wellness window with modular architecture."""
+    
+    # Signals for compatibility with ApplicationController
+    window_opened_signal = pyqtSignal()
+    window_closed_signal = pyqtSignal()
 
     def __init__(self, user_id=1):
         super().__init__()
@@ -433,6 +437,17 @@ class EnhancedWellnessWindow(QMainWindow):
         # Update content for the new period
         self.create_enhanced_period_content(period)
 
+    def showEvent(self, event):
+        """Emits signal when window is shown."""
+        super().showEvent(event)
+        self.window_opened_signal.emit()
+
+    def closeEvent(self, event):
+        """Handles window close event - hide instead of close and emit signal."""
+        self.hide()
+        event.ignore()
+        self.window_closed_signal.emit()
+
 
 def main():
     """Test the enhanced wellness interface."""
@@ -442,7 +457,6 @@ def main():
     app = QApplication(sys.argv)
     
     window = EnhancedWellnessWindow()
-    window.show()
     
     # Start with stats section
     window.switch_section("stats")

@@ -4,6 +4,7 @@ import os
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import QTimer, QCoreApplication, QUrl
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
+from PyQt5.QtGui import QMovie
 
 # Importujemy moduły UI
 from ui.tray_icon import BreakReminderTrayIcon
@@ -146,9 +147,6 @@ class ApplicationController:
 
         self._connect_signals()
         
-        # Pokaż okno od razu przy starcie aplikacji
-        self.settings_window.show()
-        
 
     def _connect_signals(self):
         """Łączy sygnały pomiędzy komponentami."""
@@ -163,15 +161,14 @@ class ApplicationController:
         # Kliknięcie na powiadomienie w trayu -> Rozpocznij przerwę (otwórz okno)
         self.tray_icon.break_activated_signal.connect(self.start_break_session)
 
-        # Koniec przerwy w MainTab -> Wznów pracę
-        self.settings_window.main_timer_tab.timer_finished.connect(self.start_work_session)
+        # Koniec przerwy w MainTab -> Wznów pracę (będzie połączone po utworzeniu enhanced main page)
+        # self.settings_window.main_timer_tab.timer_finished.connect(self.start_work_session)
 
         # 2. Połączenie Timer / Okno Główne (Wstrzymywanie podczas interakcji):
-        # EnhancedWellnessWindow nie ma tych sygnałów, więc je pomijamy
-        # Wstrzymujemy/Wznawiamy tylko główny timer pracy, gdy okno ustawień jest otwarte/zamknięte.
+        # Now that EnhancedWellnessWindow has the required signals, we can connect them
         self.settings_window.window_opened_signal.connect(self.pause_main_timer)
         self.settings_window.window_closed_signal.connect(self.resume_main_timer)
-
+        
         # 3. Połączenie Vision / UI (Pauza/Wznowienie Timera przerwy):
         if self.eye_monitor_worker:
             self.eye_monitor_worker.gaze_detected_signal.connect(self.handle_gaze_change)
@@ -196,9 +193,15 @@ class ApplicationController:
             self.eye_monitor_worker.set_tracking_enabled(True)  # NOWOŚĆ!
             print("Eye Monitor: Wątek AKTYWOWANY do śledzenia przerwy.")
 
-        # 2. Otwórz i aktywuj okno z timerem przerwy
+        # 2. Otwórz okno i przejdź do main tab
         self.settings_window.show()
-        self.settings_window.main_timer_tab.start_session()
+        # Switch to main section and start the session
+        if hasattr(self.settings_window, 'switch_section'):
+            self.settings_window.switch_section('main')
+        
+        # 3. Start the enhanced main page session (timer, audio, GIF)
+        if hasattr(self, '_start_main_session'):
+            self._start_main_session()
 
     def start_work_session(self):
         """
@@ -209,12 +212,17 @@ class ApplicationController:
         self.current_state = self.STATE_WORKING
         self.tray_icon.setToolTip("Break Reminder: Pracuję...")
 
-        # 1. Zmień stan w wątku Vision, aby przestał przetwarzać (lub ignorował wyniki)
+        # 1. Stop main session (timer, audio, GIF)
+        if hasattr(self, '_stop_main_session'):
+            self._stop_main_session()
+
+        # 2. Zmień stan w wątku Vision, aby przestał przetwarzać (lub ignorował wyniki)
         if self.eye_monitor_worker and self.eye_monitor_worker.isRunning():
             self.eye_monitor_worker.set_tracking_enabled(False)  # NOWOŚĆ!
             print("Eye Monitor: Wątek ZAWIESZONY/WYŁĄCZONY (czeka).")
 
-        # 2. Wznów główny timer pracy
+        # 3. Hide the window and resume main work timer
+        self.settings_window.hide()
         self._start_main_timer()
 
     def handle_gaze_change(self, looking_at_screen, x_angle, y_angle):
@@ -312,7 +320,7 @@ class ApplicationController:
         else:
             print(f"Błąd: Plik muzyki '{self.background_music_path}' nie został znaleziony.")
 
-        self.total_time_seconds = 5 * 60
+        self.total_time_seconds = 10
         self.current_seconds_left = self.total_time_seconds
         self.main_page_timer = QTimer(main_page)
         self.main_page_timer.timeout.connect(self._update_countdown)
@@ -381,10 +389,18 @@ class ApplicationController:
         # Setup GIF player
         self._setup_main_gif_player()
         
-        # Start timer i audio
-        self._start_main_session()
+        # Connect timer finished signal to work session start
+        self.main_page_timer.timeout.connect(self._check_timer_finished)
+        
+        # Don't start timer/audio automatically - will be started during break session
         
         return main_page
+
+    def _check_timer_finished(self):
+        """Check if timer is finished and trigger work session start."""
+        if self.current_seconds_left <= 0:
+            # Timer finished, start work session
+            self.start_work_session()
 
     def _setup_main_gif_player(self):
         """Konfiguruje odtwarzacz GIF dla strony Main."""
@@ -422,6 +438,39 @@ class ApplicationController:
         if self.gif_movie.isValid():
             self.gif_movie.start()
             print("GIF rozpoczęty.")
+
+    def _stop_main_session(self):
+        """Zatrzymuje sesję na stronie Main."""
+        # Stop timer
+        if hasattr(self, 'main_page_timer') and self.main_page_timer.isActive():
+            self.main_page_timer.stop()
+            print("Timer Main zatrzymany.")
+
+        # Stop audio players
+        if hasattr(self, 'media_player') and self.media_player.state() == QMediaPlayer.PlayingState:
+            self.media_player.stop()
+            print("Instrukcja audio zatrzymana.")
+
+        if hasattr(self, 'background_music_player') and self.background_music_player.state() == QMediaPlayer.PlayingState:
+            self.background_music_player.stop()
+            print("Muzyka w tle zatrzymana.")
+
+        # Stop GIF
+        if hasattr(self, 'gif_movie') and self.gif_movie.isValid() and self.gif_movie.state() == QMovie.Running:
+            self.gif_movie.stop()
+            print("GIF zatrzymany.")
+
+        # Reset timer display
+        if hasattr(self, 'current_seconds_left'):
+            self.current_seconds_left = self.total_time_seconds
+            self._update_main_display(self.current_seconds_left)
+
+        # Reset status
+        if hasattr(self, 'status_label'):
+            self.status_label.setText("CZAS DO KOŃCA PRZERWY")
+            self.status_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #e8e9ea;")
+
+        self.is_main_paused = False
 
     def _update_countdown(self):
         """Aktualizuje odliczanie na stronie Main."""
