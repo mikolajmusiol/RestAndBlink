@@ -8,7 +8,7 @@ logging.getLogger().addHandler(logging.StreamHandler())
 
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                             QLabel, QPushButton, QStackedWidget, QFrame, QGridLayout,
-                            QScrollArea)
+                            QScrollArea, QApplication)
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QFont, QPalette, QColor
 import sqlite3
@@ -43,9 +43,8 @@ class EnhancedWellnessWindow(QMainWindow):
         self.current_section = "main"
         self.current_stats_period = "daily"
 
-        self.setWindowTitle("Rest&Blink - Menu Główne")
-        self.setGeometry(100, 100, 1600, 1000)
-
+        # Calculate scaling factor for dynamic UI scaling
+        self.calculate_ui_scaling()
 
         self.setWindowTitle("Rest&Blink - Enhanced Wellness Dashboard")
 
@@ -58,12 +57,14 @@ class EnhancedWellnessWindow(QMainWindow):
         window_width = int(screen_rect.width() * 0.85)
         window_height = int(screen_rect.height() * 0.80)
 
-        # Minimum and maximum sizes
-        window_width = max(1200, min(2400, window_width))
-        window_height = max(800, min(1600, window_height))
+        # Minimum and maximum sizes with scaling
+        min_width = int(1000 * self.ui_scale)
+        min_height = int(700 * self.ui_scale)
+        window_width = max(min_width, min(int(2400 * self.ui_scale), window_width))
+        window_height = max(min_height, min(int(1600 * self.ui_scale), window_height))
 
         self.setGeometry(100, 100, window_width, window_height)
-        self.setMinimumSize(1000, 700)  # Minimum usable size
+        self.setMinimumSize(min_width, min_height)
 
         # Apply dark wellness theme
         self.apply_wellness_theme()
@@ -73,66 +74,175 @@ class EnhancedWellnessWindow(QMainWindow):
         
         # Setup UI
         self.setup_ui()
+
+    def resizeEvent(self, event):
+        """Handle window resize events for responsive scaling."""
+        super().resizeEvent(event)
+        # Optionally recalculate scaling on resize if needed
+        # This could be used for even more responsive design
+
+    def calculate_ui_scaling(self):
+        """Calculate UI scaling factor based on screen DPI and resolution."""
+        try:
+            from PyQt5.QtWidgets import QDesktopWidget
+            desktop = QDesktopWidget()
+            screen_rect = desktop.screenGeometry()
+            
+            # Get screen DPI
+            app = QApplication.instance()
+            if app is None:
+                # If no app instance, create temporary one
+                import sys
+                temp_app = QApplication(sys.argv if hasattr(sys, 'argv') else [])
+                desktop = QDesktopWidget()
+                screen_rect = desktop.screenGeometry()
+            
+            # Try to get DPI information
+            try:
+                # For PyQt5, use desktop widget
+                dpi = desktop.logicalDpiX()
+            except:
+                # Fallback DPI
+                dpi = 96
+            
+            # Base DPI (Windows standard)
+            base_dpi = 96.0
+            
+            # Calculate DPI scaling factor
+            dpi_scale = dpi / base_dpi
+            
+            # Get screen geometry
+            screen_width = screen_rect.width()
+            screen_height = screen_rect.height()
+            
+            # Base resolution scaling (1920x1080 as reference)
+            base_width = 1920
+            base_height = 1080
+            
+            resolution_scale_x = screen_width / base_width
+            resolution_scale_y = screen_height / base_height
+            resolution_scale = min(resolution_scale_x, resolution_scale_y)
+            
+            # Combine DPI and resolution scaling
+            combined_scale = (dpi_scale * 0.7) + (resolution_scale * 0.3)
+            
+            # Clamp scaling between reasonable bounds
+            self.ui_scale = max(0.8, min(2.0, combined_scale))
+            
+            # Font scaling (slightly different curve for better readability)
+            self.font_scale = max(0.9, min(1.8, combined_scale * 0.95))
+            
+            print(f"UI Scaling - Screen: {screen_width}x{screen_height}, DPI: {dpi}")
+            print(f"DPI Scale: {dpi_scale:.2f}, Resolution Scale: {resolution_scale:.2f}")
+            print(f"Final UI Scale: {self.ui_scale:.2f}, Font Scale: {self.font_scale:.2f}")
+            
+        except Exception as e:
+            print(f"Error calculating UI scaling: {e}")
+            # Fallback scaling
+            self.ui_scale = 1.0
+            self.font_scale = 1.0
+
+    def scaled_font(self, family, size, weight=QFont.Normal):
+        """Create a font with scaled size."""
+        scaled_size = int(size * self.font_scale)
+        return QFont(family, scaled_size, weight)
+
+    def scaled_size(self, size):
+        """Scale a size value."""
+        return int(size * self.ui_scale)
+
+    def get_responsive_margins(self):
+        """Get responsive margins based on window size."""
+        window_width = self.width()
+        if window_width < 1200:
+            return self.scaled_size(15)
+        elif window_width < 1600:
+            return self.scaled_size(20)
+        else:
+            return self.scaled_size(30)
+
+    def update_responsive_styles(self):
+        """Update styles based on current window size."""
+        # This can be called when window is resized for more dynamic adaptation
+        margins = self.get_responsive_margins()
+        
+        # Update content margins if needed
+        if hasattr(self, 'content_stack'):
+            for i in range(self.content_stack.count()):
+                widget = self.content_stack.widget(i)
+                if widget and hasattr(widget, 'layout'):
+                    layout = widget.layout()
+                    if layout:
+                        layout.setContentsMargins(margins, margins, margins, margins)
         
     def apply_wellness_theme(self):
-        """Apply dark bio-hacking wellness theme."""
-        self.setStyleSheet("""
-            QMainWindow {
+        """Apply dark bio-hacking wellness theme with dynamic scaling."""
+        # Calculate scaled values
+        button_padding_v = self.scaled_size(12)
+        button_padding_h = self.scaled_size(24)
+        border_radius = self.scaled_size(8)
+        frame_border_radius = self.scaled_size(10)
+        stats_card_radius = self.scaled_size(12)
+        stats_card_padding = self.scaled_size(16)
+        font_size = int(14 * self.font_scale)
+        
+        self.setStyleSheet(f"""
+            QMainWindow {{
                 background-color: #1a1d1f;
                 color: #e8e9ea;
-            }
+            }}
             
-            QLabel {
+            QLabel {{
                 color: #e8e9ea;
                 font-family: 'Segoe UI', Arial, sans-serif;
-            }
+            }}
             
-            QPushButton {
+            QPushButton {{
                 background-color: #2c3034;
                 border: 1px solid #404448;
                 color: #e8e9ea;
-                padding: 12px 24px;
-                border-radius: 8px;
-                font-size: 14px;
+                padding: {button_padding_v}px {button_padding_h}px;
+                border-radius: {border_radius}px;
+                font-size: {font_size}px;
                 font-weight: 500;
-            }
+            }}
             
-            QPushButton:hover {
+            QPushButton:hover {{
                 background-color: #363940;
                 border-color: #5a6269;
-            }
+            }}
             
-            QPushButton:pressed {
+            QPushButton:pressed {{
                 background-color: #404448;
-            }
+            }}
             
-            QPushButton.active {
+            QPushButton.active {{
                 background-color: #3d5a80;
                 border-color: #5d7ca3;
                 color: #ffffff;
-            }
+            }}
             
-            QFrame {
+            QFrame {{
                 background-color: #262a2d;
                 border: 1px solid #404448;
-                border-radius: 10px;
-            }
+                border-radius: {frame_border_radius}px;
+            }}
             
-            QFrame.stats-card {
+            QFrame.stats-card {{
                 background-color: #232629;
                 border: 1px solid #3a3f44;
-                border-radius: 12px;
-                padding: 16px;
-            }
+                border-radius: {stats_card_radius}px;
+                padding: {stats_card_padding}px;
+            }}
             
-            QScrollArea {
+            QScrollArea {{
                 background-color: #1a1d1f;
                 border: none;
-            }
+            }}
             
-            QScrollArea QWidget {
+            QScrollArea QWidget {{
                 background-color: #1a1d1f;
-            }
+            }}
         """)
     
     def get_user_data(self):
@@ -181,7 +291,7 @@ class EnhancedWellnessWindow(QMainWindow):
         self.setCentralWidget(central_widget)
         
         main_layout = QVBoxLayout(central_widget)
-        main_layout.setContentsMargins(0, 25, 0, 0)  # Zwiększamy margines na górze do 25px
+        main_layout.setContentsMargins(0, self.scaled_size(25), 0, 0)  # Skalowany margines na górze
         main_layout.setSpacing(0)
         
         # Top header section
@@ -202,15 +312,15 @@ class EnhancedWellnessWindow(QMainWindow):
     def create_header(self, parent_layout):
         """Create the top header with logo and user info."""
         header_widget = QWidget()
-        header_widget.setFixedHeight(110)  # Jeszcze większa wysokość
+        header_widget.setFixedHeight(self.scaled_size(110))  # Skalowana wysokość
         header_widget.setStyleSheet("background-color: #1a1d1f; border-bottom: 1px solid #404448;")
         
         header_layout = QHBoxLayout(header_widget)
-        header_layout.setContentsMargins(30, 20, 30, 20)  # Jeszcze więcej marginesu na górze i dole
+        header_layout.setContentsMargins(self.scaled_size(30), self.scaled_size(20), self.scaled_size(30), self.scaled_size(20))  # Skalowane marginesy
         
         # Left side - Logo
         logo_label = QLabel("Rest&Blink")
-        logo_label.setFont(QFont("Segoe UI", 24, QFont.Bold))
+        logo_label.setFont(self.scaled_font("Segoe UI", 24, QFont.Bold))
         logo_label.setStyleSheet("color: #7cb9e8; border: none;")
         header_layout.addWidget(logo_label)
         
@@ -221,7 +331,7 @@ class EnhancedWellnessWindow(QMainWindow):
         quick_stats_widget = QWidget()
         quick_stats_layout = QHBoxLayout(quick_stats_widget)
         quick_stats_layout.setContentsMargins(0, 0, 0, 0)
-        quick_stats_layout.setSpacing(15)
+        quick_stats_layout.setSpacing(self.scaled_size(15))
 
         # Today's sessions card
         today_card = self.create_quick_stat_card("Today's Sessions", "8", "#7cb9e8")
@@ -246,13 +356,13 @@ class EnhancedWellnessWindow(QMainWindow):
         # User greeting
         greeting = f"Hi, {self.user_data['first_name']} {self.user_data['last_name']}"
         user_label = QLabel(greeting)
-        user_label.setFont(QFont("Segoe UI", 14, QFont.Medium))
+        user_label.setFont(self.scaled_font("Segoe UI", 14, QFont.Medium))
         user_label.setStyleSheet("color: #e8e9ea; border: none;")
         user_label.setAlignment(Qt.AlignRight)
         
         # Level info
         level_label = QLabel(f"lv. {self.user_data['level']}")
-        level_label.setFont(QFont("Segoe UI", 12))
+        level_label.setFont(self.scaled_font("Segoe UI", 12))
         level_label.setStyleSheet("color: #a8b5c1; border: none;")
         level_label.setAlignment(Qt.AlignRight)
         
@@ -265,12 +375,12 @@ class EnhancedWellnessWindow(QMainWindow):
     def create_fixed_navigation(self, parent_layout):
         """Create fixed navigation tiles that are always visible."""
         nav_widget = QWidget()
-        nav_widget.setFixedHeight(70)
+        nav_widget.setFixedHeight(self.scaled_size(70))
         nav_widget.setStyleSheet("background-color: #1a1d1f;")
         
         nav_layout = QHBoxLayout(nav_widget)
-        nav_layout.setContentsMargins(30, 15, 30, 15)
-        nav_layout.setSpacing(20)
+        nav_layout.setContentsMargins(self.scaled_size(30), self.scaled_size(15), self.scaled_size(30), self.scaled_size(15))
+        nav_layout.setSpacing(self.scaled_size(20))
         
         # Add spacer to center navigation
         nav_layout.addStretch()
@@ -286,7 +396,7 @@ class EnhancedWellnessWindow(QMainWindow):
 
         for nav_id, nav_text in nav_items:
             btn = QPushButton(nav_text)
-            btn.setMinimumSize(120, 40)
+            btn.setMinimumSize(self.scaled_size(120), self.scaled_size(40))
             btn.clicked.connect(lambda checked, nav_id=nav_id: self.switch_section(nav_id))
 
             self.nav_buttons[nav_id] = btn
@@ -301,19 +411,19 @@ class EnhancedWellnessWindow(QMainWindow):
         """Create a separator line under navigation."""
         # Small spacing
         spacer_top = QWidget()
-        spacer_top.setFixedHeight(10)
+        spacer_top.setFixedHeight(self.scaled_size(10))
         spacer_top.setStyleSheet("background-color: #1a1d1f;")
         parent_layout.addWidget(spacer_top)
 
         # Separator line
         separator = QFrame()
-        separator.setFixedHeight(2)
+        separator.setFixedHeight(self.scaled_size(2))
         separator.setStyleSheet("background-color: #404448; border: none;")
         parent_layout.addWidget(separator)
 
         # Small spacing after
         spacer_bottom = QWidget()
-        spacer_bottom.setFixedHeight(10)
+        spacer_bottom.setFixedHeight(self.scaled_size(10))
         spacer_bottom.setStyleSheet("background-color: #1a1d1f;")
         parent_layout.addWidget(spacer_bottom)
 
@@ -356,18 +466,18 @@ class EnhancedWellnessWindow(QMainWindow):
 
         title_label = QLabel(title)
         title_label.setAlignment(Qt.AlignCenter)
-        title_label.setFont(QFont("Segoe UI", 24))
-        title_label.setStyleSheet("color: #e8e9ea; margin: 50px;")
+        title_label.setFont(self.scaled_font("Segoe UI", 24))
+        title_label.setStyleSheet(f"color: #e8e9ea; margin: {self.scaled_size(50)}px;")
         desc_label = QLabel(description)
         desc_label.setAlignment(Qt.AlignCenter)
-        desc_label.setFont(QFont("Segoe UI", 14))
+        desc_label.setFont(self.scaled_font("Segoe UI", 14))
         desc_label.setStyleSheet("color: #a8b5c1; margin-bottom: 30px;")
         layout.addWidget(title_label)
         layout.addWidget(desc_label)
 
         camera_label = QLabel()
         camera_label.setAlignment(Qt.AlignCenter)
-        camera_label.setFixedSize(640, 480)
+        camera_label.setFixedSize(self.scaled_size(640), self.scaled_size(480))
         camera_label.setStyleSheet("border: 2px solid #2c3e50; border-radius: 10px; background: black;")
         layout.addWidget(camera_label, alignment=Qt.AlignCenter)
 
@@ -378,7 +488,7 @@ class EnhancedWellnessWindow(QMainWindow):
 
         eyes_list = QListWidget()
         eyes_list.setStyleSheet("color: #e8e9ea; background: #111214; border: 1px solid #2c3e50;")
-        eyes_list.setFixedHeight(160)
+        eyes_list.setFixedHeight(self.scaled_size(160))
         layout.addWidget(eyes_list)
 
         progress = QProgressBar()
@@ -728,12 +838,12 @@ class EnhancedWellnessWindow(QMainWindow):
         
         title_label = QLabel(title)
         title_label.setAlignment(Qt.AlignCenter)
-        title_label.setFont(QFont("Segoe UI", 24, QFont.Medium))
-        title_label.setStyleSheet("color: #e8e9ea; margin: 50px;")
+        title_label.setFont(self.scaled_font("Segoe UI", 24, QFont.Medium))
+        title_label.setStyleSheet(f"color: #e8e9ea; margin: {self.scaled_size(50)}px;")
         
         desc_label = QLabel(description)
         desc_label.setAlignment(Qt.AlignCenter)
-        desc_label.setFont(QFont("Segoe UI", 14))
+        desc_label.setFont(self.scaled_font("Segoe UI", 14))
         desc_label.setStyleSheet("color: #a8b5c1; margin-bottom: 100px;")
         
         layout.addWidget(title_label)
@@ -747,7 +857,7 @@ class EnhancedWellnessWindow(QMainWindow):
         page = QWidget()
         page.setStyleSheet("background-color: #1a1d1f;")
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setContentsMargins(self.scaled_size(30), self.scaled_size(30), self.scaled_size(30), self.scaled_size(30))
 
         # Create scroll area
         scroll_area = QScrollArea()
@@ -948,16 +1058,16 @@ class EnhancedWellnessWindow(QMainWindow):
         name_label = QLabel(achievement['name'])
         name_label.setAlignment(Qt.AlignCenter)
         name_label.setWordWrap(True)
-        name_label.setFont(QFont("Segoe UI", 12, QFont.Bold))
+        name_label.setFont(self.scaled_font("Segoe UI", 12, QFont.Bold))
         if achievement['earned']:
-            name_label.setStyleSheet("color: #ffffff; margin-top: 5px;")
+            name_label.setStyleSheet(f"color: #ffffff; margin-top: {self.scaled_size(5)}px;")
         else:
-            name_label.setStyleSheet("color: #8b9197; margin-top: 5px;")
+            name_label.setStyleSheet(f"color: #8b9197; margin-top: {self.scaled_size(5)}px;")
 
         # Rarity indicator - smaller and more subtle
         rarity_label = QLabel(achievement['rarity'].upper())
         rarity_label.setAlignment(Qt.AlignCenter)
-        rarity_label.setFont(QFont("Segoe UI", 8, QFont.Bold))
+        rarity_label.setFont(self.scaled_font("Segoe UI", 8, QFont.Bold))
 
         # Color code by rarity
         rarity_colors = {
@@ -1038,34 +1148,35 @@ class EnhancedWellnessWindow(QMainWindow):
         card.setFrameStyle(QFrame.NoFrame)
         
         # Standard size that works well
-        card.setFixedSize(180, 75)
+        card.setFixedSize(self.scaled_size(180), self.scaled_size(75))
         
         # Clean, simple styling
-        card.setStyleSheet("""
-            QFrame {
+        border_radius = self.scaled_size(8)
+        card.setStyleSheet(f"""
+            QFrame {{
                 background-color: #232629;
                 border: none;
-                border-radius: 8px;
-            }
-            QFrame:hover {
+                border-radius: {border_radius}px;
+            }}
+            QFrame:hover {{
                 background-color: #2a2d30;
-            }
+            }}
         """)
 
         # Simple layout with reasonable margins
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(10, 12, 10, 10)
-        layout.setSpacing(5)
+        layout.setContentsMargins(self.scaled_size(10), self.scaled_size(12), self.scaled_size(10), self.scaled_size(10))
+        layout.setSpacing(self.scaled_size(5))
         
         # Title label
         title_label = QLabel(title)
-        title_label.setFont(QFont("Segoe UI", 9))
+        title_label.setFont(self.scaled_font("Segoe UI", 9))
         title_label.setStyleSheet(f"color: {color}; background: transparent;")
         title_label.setWordWrap(True)
         
         # Value label
         value_label = QLabel(value)
-        value_label.setFont(QFont("Segoe UI", 12, QFont.Bold))
+        value_label.setFont(self.scaled_font("Segoe UI", 12, QFont.Bold))
         value_label.setStyleSheet("color: #e8e9ea; background: transparent;")
         
         layout.addWidget(title_label)
@@ -1087,13 +1198,13 @@ class EnhancedWellnessWindow(QMainWindow):
         header_container = QWidget()
         header_container.setStyleSheet("border: none; background: transparent;")
         header_layout = QHBoxLayout(header_container)
-        header_layout.setContentsMargins(0, 0, 0, 10)
+        header_layout.setContentsMargins(0, 0, 0, self.scaled_size(10))
 
         # Add stretchers to center the header
         header_layout.addStretch()
 
         stats_header = QLabel("Stats: Health & Wellness Analytics")
-        stats_header.setFont(QFont("Segoe UI", 20, QFont.Medium))
+        stats_header.setFont(self.scaled_font("Segoe UI", 20, QFont.Medium))
         stats_header.setStyleSheet("color: #e8e9ea; border: none; background: transparent;")
         header_layout.addWidget(stats_header)
 
@@ -1106,7 +1217,7 @@ class EnhancedWellnessWindow(QMainWindow):
         period_widget.setStyleSheet("border: none; background: transparent;")
         period_layout = QHBoxLayout(period_widget)
         period_layout.setContentsMargins(0, 0, 0, 0)
-        period_layout.setSpacing(15)
+        period_layout.setSpacing(self.scaled_size(15))
         
         self.period_buttons = {}
         periods = [
@@ -1326,7 +1437,7 @@ class EnhancedWellnessWindow(QMainWindow):
         
         # Improve note
         improve_note = QLabel("Improve note")
-        improve_note.setFont(QFont("Segoe UI", 12))
+        improve_note.setFont(self.scaled_font("Segoe UI", 12))
         improve_note.setStyleSheet("color: #a8b5c1;")
         improve_note.setAlignment(Qt.AlignRight | Qt.AlignBottom)
         
@@ -1342,16 +1453,16 @@ class EnhancedWellnessWindow(QMainWindow):
         widget = QWidget()
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(10)
+        layout.setSpacing(self.scaled_size(10))
         
         # Title
         title_label = QLabel(title)
-        title_label.setFont(QFont("Segoe UI", 14, QFont.Medium))
+        title_label.setFont(self.scaled_font("Segoe UI", 14, QFont.Medium))
         title_label.setStyleSheet(f"color: {color};")
         
         # Value
         value_label = QLabel(value)
-        value_label.setFont(QFont("Segoe UI", 24, QFont.Bold))
+        value_label.setFont(self.scaled_font("Segoe UI", 24, QFont.Bold))
         value_label.setStyleSheet("color: #e8e9ea;")
         
         layout.addWidget(title_label)
@@ -1361,7 +1472,7 @@ class EnhancedWellnessWindow(QMainWindow):
         # Range (if provided)
         if range_text:
             range_label = QLabel(range_text)
-            range_label.setFont(QFont("Segoe UI", 12))
+            range_label.setFont(self.scaled_font("Segoe UI", 12))
             range_label.setStyleSheet("color: #a8b5c1;")
             range_label.setAlignment(Qt.AlignRight | Qt.AlignBottom)
             layout.addWidget(range_label)
