@@ -47,7 +47,7 @@ class MainTab(QWidget):
         else:
             print(f"Błąd: Plik muzyki '{self.background_music_path}' nie został znaleziony.")
 
-        self.total_time_seconds = 5 * 60
+        self.total_time_seconds = 10
         self.current_seconds_left = self.total_time_seconds
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._update_countdown)
@@ -56,7 +56,7 @@ class MainTab(QWidget):
 
         self.setLayout(self._setup_layout())
         self._setup_gif_player()
-        self._start_initial_countdown()
+        self._update_display(self.current_seconds_left)
 
     def pause_break_timer(self, x_angle, y_angle):
         """
@@ -229,48 +229,18 @@ class MainTab(QWidget):
         super().closeEvent(event)
 
     def showEvent(self, event):
-        """Metoda wywoływana, gdy zakładka staje się widoczna."""
+        """Metoda wywoływana, gdy zakładka staje się widoczna. Tylko wywołuje super()."""
         super().showEvent(event)
-
-        # Uruchom instrukcję audio (muzyka w tle rozpocznie się automatycznie po zakończeniu)
-        if os.path.exists(self.audio_file_path) and self.media_player.state() != QMediaPlayer.PlayingState:
-            self.media_player.play()
-            print("Instrukcja audio rozpoczęta.")
-        elif not os.path.exists(self.audio_file_path):
-            # Jeśli nie ma instrukcji, od razu uruchom muzykę w tle
-            self._start_background_music()
-
-        if not self.timer.isActive():
-            self._start_initial_countdown()
-            print("Timer rozpoczęty.")
-
-        if self.gif_movie.isValid() and self.gif_movie.state() != QMovie.Running:
-            self.gif_movie.start()
-            print("GIF rozpoczęty.")
 
     def hideEvent(self, event):
         """Metoda wywoływana, gdy zakładka przestaje być widoczna."""
         super().hideEvent(event)
 
-        # Zatrzymaj oba odtwarzacze
-        if self.media_player.state() == QMediaPlayer.PlayingState:
-            self.media_player.stop()
-            print("Instrukcja audio zatrzymana.")
-
-        if self.background_music_player.state() == QMediaPlayer.PlayingState:
-            self.background_music_player.stop()
-            print("Muzyka w tle zatrzymana.")
-
-        if self.timer.isActive():
-            self.timer.stop()
-            print("Timer zatrzymany.")
-
-        if self.gif_movie.isValid() and self.gif_movie.state() == QMovie.Running:
-            self.gif_movie.stop()
-            print("GIF zatrzymany.")
-
     def start_session(self):
-        """Uruchamia sesję - wywoływana z main_window.py"""
+        """Uruchamia sesję przerwy - wywoływana z ApplicationController."""
+
+        self.current_seconds_left = self.total_time_seconds
+
         # Uruchom instrukcję audio (muzyka w tle rozpocznie się automatycznie po zakończeniu)
         if os.path.exists(self.audio_file_path) and self.media_player.state() != QMediaPlayer.PlayingState:
             print(f"Uruchamiam instrukcję: {self.audio_file_path}")
@@ -283,6 +253,8 @@ class MainTab(QWidget):
 
         if not self.timer.isActive():
             self._start_initial_countdown()
+            self.status_label.setText("CZAS DO KOŃCA PRZERWY")
+            self.status_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #555;")
             print("Timer rozpoczęty.")
 
         if self.gif_movie.isValid() and self.gif_movie.state() != QMovie.Running:

@@ -97,23 +97,32 @@ class EyeTracker:
 
 
 class EyeMonitorWorker(QThread):
-    """Wątek roboczy, który używa FaceAngleTracker w tle (dla PyQt GUI)."""
+    """Wątek roboczy, który używa EyeTracker w tle (dla PyQt GUI)."""
     gaze_detected_signal = pyqtSignal(bool, float, float)
 
     def __init__(self, tracker_instance, parent=None):
         super().__init__(parent)
         self.running = True
+        self.is_tracking_enabled = False  # NOWA FLAGA
         self.tracker = tracker_instance
         self.check_interval_ms = 100
+
+    def set_tracking_enabled(self, enabled: bool):
+        """Ustawia, czy wątek ma aktywnie monitorować wzrok i emitować sygnały."""
+        self.is_tracking_enabled = enabled
+        print(f"EyeMonitorWorker: Tracking enabled set to {enabled}")
 
     def run(self):
         while self.running:
             start_time = time.time()
 
-            result = self.tracker.get_gaze(show_frame=False)
-            if result:
-                looking, yaw, pitch = result
-                self.gaze_detected_signal.emit(looking, yaw, pitch)
+            if self.is_tracking_enabled:
+                result = self.tracker.get_gaze(show_frame=False)
+                if result:
+                    looking, yaw, pitch = result
+                    self.gaze_detected_signal.emit(looking, yaw, pitch)
+            else:
+                self.tracker.cap.grab()
 
             elapsed = time.time() - start_time
             sleep_time = (self.check_interval_ms / 1000) - elapsed
