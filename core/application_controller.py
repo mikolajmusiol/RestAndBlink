@@ -1,26 +1,25 @@
-# main.py
-import sys
+# core/application_controller.py
 import os
-from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import QTimer, QCoreApplication
+from PyQt5.QtWidgets import QApplication
 
-# Importujemy moduły UI
 from ui.tray_icon import BreakReminderTrayIcon
-from ui.enhanced_wellness_window import EnhancedWellnessWindow
+from ui.main_window import SettingsStatsWindow
 from vision.eye_monitor import EyeMonitorWorker, EyeTracker
+
 
 class ApplicationController:
     """
     Główny kontroler łączący logikę (Timer, Vision) z UI (TrayIcon, Windows).
     """
 
-    def __init__(self):
-        # 0. Ustawienie aplikacji
-        self.app = QApplication(sys.argv)
+    def __init__(self, app):
+        # Aplikacja PyQt5
+        self.app = app
         self.app.setQuitOnLastWindowClosed(False)
 
         # 1. Bezpieczne określenie ścieżek do Ikon
-        base_dir = os.path.dirname(os.path.abspath(__file__))
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         self.ICON_PATH = os.path.join(base_dir, "resources", "icons", "flower-2.svg")
         self.APP_ICON_PATH = os.path.join(base_dir, "resources", "icons", "app-icon.svg")
 
@@ -49,8 +48,8 @@ class ApplicationController:
         except RuntimeError as e:
             print(f"BŁĄD KAMERY: {e}. Monitorowanie wzroku będzie wyłączone.")
 
-        # UI: Okno Enhanced Wellness (zamiast SettingsStatsWindow)
-        self.settings_window = EnhancedWellnessWindow()
+        # UI: Okno Ustawień/Statystyk
+        self.settings_window = SettingsStatsWindow(self.APP_ICON_PATH)
 
         # UI: Applet w zasobniku
         self.tray_icon = BreakReminderTrayIcon(self.ICON_PATH)
@@ -66,10 +65,12 @@ class ApplicationController:
         self.timer.timeout.connect(self.tray_icon.show_break_reminder)
 
         # 2. Połączenie Timer / Okno Główne (Wstrzymywanie podczas interakcji):
-        # EnhancedWellnessWindow nie ma tych sygnałów, więc je pomijamy
+        self.settings_window.window_opened_signal.connect(self.pause_main_timer)
+        self.settings_window.window_closed_signal.connect(self.resume_main_timer)
 
         # 3. Połączenie Vision / UI (Pauza/Wznowienie Timera przerwy):
-        # EnhancedWellnessWindow nie ma main_timer_tab, więc je pomijamy na razie
+        if self.eye_monitor_worker:
+            self.eye_monitor_worker.gaze_detected_signal.connect(self.handle_gaze_change)
 
     def handle_gaze_change(self, looking_at_screen, x_angle, y_angle):
         """
@@ -80,8 +81,12 @@ class ApplicationController:
             x_angle (float): Kąt w osi X
             y_angle (float): Kąt w osi Y
         """
-        # Funkcjonalność monitorowania wzroku - na razie wyłączona
-        pass
+        if looking_at_screen:
+            # Użytkownik zaczął patrzeć w ekran - zapauzuj timer
+            self.settings_window.main_timer_tab.pause_break_timer(x_angle, y_angle)
+        else:
+            # Użytkownik przestał patrzeć w ekran - wznów timer
+            self.settings_window.main_timer_tab.resume_break_timer()
 
     def pause_main_timer(self):
         """Zatrzymuje główny timer odliczający czas pracy."""
@@ -121,15 +126,3 @@ class ApplicationController:
     def run(self):
         """Uruchamia pętlę zdarzeń aplikacji."""
         return self.app.exec_()
-
-
-if __name__ == '__main__':
-    try:
-        controller = ApplicationController()
-        sys.exit(controller.run())
-    except FileNotFoundError as e:
-        print(e)
-        sys.exit(1)
-    except Exception as e:
-        print(f"Wystąpił nieoczekiwany błąd: {e}")
-        sys.exit(1)

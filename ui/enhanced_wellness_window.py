@@ -31,7 +31,7 @@ except Exception:
     MP_AVAILABLE = False
 
 # Import configuration tab
-from tabs.configure_tab import ConfigureTab
+from ui.tabs.configure_tab import ConfigureTab
 
 class EnhancedWellnessWindow(QMainWindow):
     """Enhanced wellness window with integrated charts."""
