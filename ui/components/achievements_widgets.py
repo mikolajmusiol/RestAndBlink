@@ -12,6 +12,21 @@ class AchievementsWidgets:
     def __init__(self, ui_scaling):
         self.ui_scaling = ui_scaling
     
+    def create_achievement_tooltip(self, achievement):
+        """Create a formatted tooltip for an achievement."""
+        description = achievement.get('description', 'No description available')
+        earned_status = "✅ EARNED" if achievement['earned'] else "🔒 NOT EARNED"
+        rarity_display = f"Rarity: {achievement['rarity'].upper()}"
+        
+        # Create rich tooltip text with HTML formatting
+        tooltip_text = f"""<div style="background-color: #2c3034; color: #e8e9ea; padding: 10px; border-radius: 8px; max-width: 300px;">
+<h3 style="color: #7cb9e8; margin: 0 0 5px 0;">{achievement['name']}</h3>
+<p style="color: #90e0ef; margin: 0 0 8px 0; font-weight: bold;">{earned_status}</p>
+<p style="color: #a8dadc; margin: 0 0 8px 0; font-size: 12px;">{rarity_display}</p>
+<p style="margin: 0; line-height: 1.4;">{description}</p>
+</div>"""
+        return tooltip_text
+    
     def create_responsive_achievements_grid(self, earned_achievements, all_achievements, window_width):
         """Create a responsive grid that adapts to screen width."""
         # Sort achievements: earned first, then unearned
@@ -61,6 +76,10 @@ class AchievementsWidgets:
         card.setMinimumSize(180, 130)  # Smaller minimum for narrow screens
         card.setMaximumSize(320, 200)  # Larger maximum for wide screens
         card.setFrameStyle(QFrame.NoFrame)  # Remove frame style
+        
+        # Set tooltip with achievement description
+        tooltip_text = self.create_achievement_tooltip(achievement)
+        card.setToolTip(tooltip_text)
 
         # Simple style without borders/ovals
         if achievement['earned']:
@@ -114,6 +133,8 @@ class AchievementsWidgets:
         display_icon = symbol_mapping.get(original_emoji, original_emoji[0] if original_emoji else '•')
 
         icon_label = QLabel(display_icon)
+        # Set the same tooltip for the icon
+        icon_label.setToolTip(tooltip_text)
 
         # Dynamic font size
         if window_width > 1400:
@@ -169,6 +190,8 @@ class AchievementsWidgets:
         name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         name_label.setWordWrap(True)
         name_label.setFont(self.ui_scaling.scaled_font("Segoe UI", 12, QFont.Bold))
+        # Set the same tooltip for the name
+        name_label.setToolTip(tooltip_text)
         if achievement['earned']:
             name_label.setStyleSheet(f"color: #ffffff; margin-top: {self.ui_scaling.scaled_size(5)}px;")
         else:
@@ -178,6 +201,8 @@ class AchievementsWidgets:
         rarity_label = QLabel(achievement['rarity'].upper())
         rarity_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         rarity_label.setFont(self.ui_scaling.scaled_font("Segoe UI", 8, QFont.Bold))
+        # Set the same tooltip for the rarity
+        rarity_label.setToolTip(tooltip_text)
 
         # Color code by rarity
         rarity_color = rarity_colors.get(achievement['rarity'], '#9ca3af')
