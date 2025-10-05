@@ -88,12 +88,18 @@ class MainTab(QWidget):
         self.status_label.setAlignment(Qt.AlignCenter)
         self.status_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #555;")
 
+        # BPM label placed above the timer display
+        self.bpm_label = QLabel("BPM: --")
+        self.bpm_label.setAlignment(Qt.AlignCenter)
+        self.bpm_label.setStyleSheet("font-size: 18px; font-weight: bold; color: #777;")
+
         self.current_time_label = QLabel("05:00")
         self.current_time_label.setAlignment(Qt.AlignCenter)
         self.current_time_label.setStyleSheet("font-size: 60px; font-weight: bold; color: #333;")
 
         timer_section_layout.addStretch(1)
         timer_section_layout.addWidget(self.status_label)
+        timer_section_layout.addWidget(self.bpm_label)
         timer_section_layout.addWidget(self.current_time_label)
         timer_section_layout.addStretch(1)
 
@@ -103,17 +109,12 @@ class MainTab(QWidget):
         gif_section_layout = QVBoxLayout()
         gif_section_layout.setAlignment(Qt.AlignCenter)
 
-        gif_label_title = QLabel("ANIMACJA GIF")
-        gif_label_title.setAlignment(Qt.AlignCenter)
-        gif_label_title.setStyleSheet("font-size: 20px; font-weight: bold; color: #555;")
-
         self.gif_display_label = QLabel()
         self.gif_display_label.setAlignment(Qt.AlignCenter)
         self.gif_display_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.gif_display_label.setMinimumSize(400, 300)
         self.gif_display_label.setStyleSheet("background-color: black;")
 
-        gif_section_layout.addWidget(gif_label_title)
         gif_section_layout.addWidget(self.gif_display_label)
         gif_section_layout.addStretch(1)
 
@@ -160,6 +161,21 @@ class MainTab(QWidget):
         seconds = seconds_left % 60
         time_str = f"{minutes:02}:{seconds:02}"
         self.current_time_label.setText(time_str)
+
+    def set_bpm(self, bpm):
+        """Ustawia wartość BPM widoczną nad timerem.
+        
+        Przekazanie None ustawi tekst na '--'.
+        """
+        if bpm is None:
+            text = "BPM: --"
+        else:
+            try:
+                text = f"BPM: {int(bpm)}"
+            except Exception:
+                text = "BPM: --"
+        
+        self.bpm_label.setText(text)
 
     def _on_instruction_finished(self, status):
         """Obsługuje zakończenie instrukcji i rozpoczyna muzykę w tle."""
