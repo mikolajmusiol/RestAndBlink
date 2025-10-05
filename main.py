@@ -97,7 +97,7 @@ class ApplicationController:
         """Tworzy instancje UI, Timera i Logiki Wizji."""
 
         self.main_work_timer = QTimer()
-        self.main_work_timer.setInterval(10000)  # TEST: 10 sekund. Zmień na 3600000 dla 60 minut!
+        self.main_work_timer.setInterval(10000)  # TEST: 10 sekund.
 
         self.gaze_tracker_instance = None
         self.eye_monitor_worker = None
@@ -320,7 +320,7 @@ class ApplicationController:
         else:
             print(f"Błąd: Plik muzyki '{self.background_music_path}' nie został znaleziony.")
 
-        self.total_time_seconds = 10
+        self.total_time_seconds = 5
         self.current_seconds_left = self.total_time_seconds
         self.main_page_timer = QTimer(main_page)
         self.main_page_timer.timeout.connect(self._update_countdown)
@@ -357,16 +357,10 @@ class ApplicationController:
         self.current_time_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.current_time_label.setStyleSheet("font-size: 60px; font-weight: bold; color: #e8e9ea;")
 
-        # Status wzroku
-        self.gaze_status_label = QLabel("Status wzroku: Sprawdzanie...")
-        self.gaze_status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.gaze_status_label.setStyleSheet("font-size: 16px; color: #ffd700; margin: 10px;")
-
         timer_section_layout.addStretch(1)
         timer_section_layout.addWidget(self.bpm_label)
         timer_section_layout.addWidget(self.status_label)
         timer_section_layout.addWidget(self.current_time_label)
-        timer_section_layout.addWidget(self.gaze_status_label)
         timer_section_layout.addStretch(1)
 
         main_layout.addLayout(timer_section_layout, 1)
@@ -550,25 +544,19 @@ class ApplicationController:
 
     def pause_main_break_timer(self, x_angle, y_angle):
         """Pauzuje timer przerwy gdy użytkownik patrzy w ekran."""
-        if hasattr(self, 'gaze_status_label'):
-            if not self.is_main_paused and self.main_page_timer.isActive():
-                self.main_page_timer.stop()
-                self.is_main_paused = True
-                self.status_label.setText(f"PAUZA! Patrzysz w ekran!")
-                self.status_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #ff6b6b;")
-                self.gaze_status_label.setText(f"👁️ PATRZYSZ W EKRAN (X:{x_angle:.1f}°, Y:{y_angle:.1f}°)")
-                self.gaze_status_label.setStyleSheet("font-size: 16px; color: #ff6b6b; margin: 10px;")
+        if not self.is_main_paused and self.main_page_timer.isActive():
+            self.main_page_timer.stop()
+            self.is_main_paused = True
+            self.status_label.setText(f"PAUZA! Patrzysz w ekran!")
+            self.status_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #ff6b6b;")
 
     def resume_main_break_timer(self):
         """Wznawia timer przerwy gdy użytkownik przestaje patrzeć w ekran."""
-        if hasattr(self, 'gaze_status_label'):
-            if self.is_main_paused:
-                self.main_page_timer.start(1000)
-                self.is_main_paused = False
-                self.status_label.setText("WZNOWIONO! Kontynuuj przerwę")
-                self.status_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #51cf66;")
-                self.gaze_status_label.setText("✅ NIE PATRZYSZ W EKRAN - Dobra robota!")
-                self.gaze_status_label.setStyleSheet("font-size: 16px; color: #51cf66; margin: 10px;")
+        if self.is_main_paused:
+            self.main_page_timer.start(1000)
+            self.is_main_paused = False
+            self.status_label.setText("WZNOWIONO! Kontynuuj przerwę")
+            self.status_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #51cf66;")
 
     def _create_fallback_icon(self, base_dir):
         """Tworzy prostą ikonę jako fallback."""
