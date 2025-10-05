@@ -2,7 +2,8 @@
 import sys
 import os
 from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import QTimer, QCoreApplication
+from PyQt5.QtCore import QTimer, QCoreApplication, QUrl
+from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 
 # Importujemy moduły UI
 from ui.tray_icon import BreakReminderTrayIcon
@@ -233,6 +234,13 @@ class ApplicationController:
         # Przygotuj playlistę dla muzyki w tle
         self.background_playlist = QMediaPlaylist()
 
+        # Połącz sygnał zakończenia instrukcji z rozpoczęciem muzyki w tle
+        self.media_player.mediaStatusChanged.connect(self._on_instruction_finished)
+        
+        # Dodaj sygnały debugowania dla background music player
+        self.background_music_player.stateChanged.connect(self._debug_background_state)
+        self.background_music_player.mediaStatusChanged.connect(self._debug_background_status)
+
         if os.path.exists(self.audio_file_path):
             self.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(self.audio_file_path)))
         else:
@@ -343,6 +351,10 @@ class ApplicationController:
         if os.path.exists(self.audio_file_path):
             self.media_player.play()
             print("Instrukcja audio rozpoczęta.")
+        else:
+            # Jeśli nie ma instrukcji, od razu uruchom muzykę w tle
+            print("Brak instrukcji, uruchamiam muzykę w tle...")
+            self._start_background_music()
 
         # Uruchom timer
         self._update_main_display(self.current_seconds_left)
@@ -375,6 +387,59 @@ class ApplicationController:
         seconds = seconds_left % 60
         time_str = f"{minutes:02}:{seconds:02}"
         self.current_time_label.setText(time_str)
+
+    def _on_instruction_finished(self, status):
+        """Obsługuje zakończenie instrukcji i rozpoczyna muzykę w tle."""
+        print(f"Instruction status changed: {status}")
+        if status == QMediaPlayer.EndOfMedia:
+            print("Instrukcja zakończona, uruchamiam muzykę w tle...")
+            # Instrukcja się skończyła, rozpocznij muzykę w tle
+            if os.path.exists(self.background_music_path):
+                print(f"Plik muzyki istnieje: {self.background_music_path}")
+                print(f"Rozmiar pliku: {os.path.getsize(self.background_music_path)} bajtów")
+
+                # Sprawdź stan odtwarzacza przed próbą odtwarzania
+                print(f"Stan background player przed play(): {self.background_music_player.state()}")
+                print(f"Status background player przed play(): {self.background_music_player.mediaStatus()}")
+
+                # Próba ręcznego ustawienia media przed odtwarzaniem
+                self.background_music_player.setMedia(QMediaContent(QUrl.fromLocalFile(self.background_music_path)))
+                self.background_music_player.play()
+                print("Komenda play() została wywołana na background music player.")
+            else:
+                print("Nie można uruchomić muzyki w tle - brak pliku.")
+
+    def _debug_background_state(self, state):
+        """Debug: wyświetla zmiany stanu background music player"""
+        states = {
+            QMediaPlayer.StoppedState: "Stopped",
+            QMediaPlayer.PlayingState: "Playing",
+            QMediaPlayer.PausedState: "Paused"
+        }
+        print(f"Background music state: {states.get(state, 'Unknown')}")
+
+    def _debug_background_status(self, status):
+        """Debug: wyświetla zmiany statusu background music player"""
+        statuses = {
+            QMediaPlayer.UnknownMediaStatus: "Unknown",
+            QMediaPlayer.NoMedia: "No Media",
+            QMediaPlayer.LoadingMedia: "Loading",
+            QMediaPlayer.LoadedMedia: "Loaded",
+            QMediaPlayer.StalledMedia: "Stalled",
+            QMediaPlayer.BufferingMedia: "Buffering",
+            QMediaPlayer.BufferedMedia: "Buffered",
+            QMediaPlayer.EndOfMedia: "End of Media",
+            QMediaPlayer.InvalidMedia: "Invalid Media"
+        }
+        print(f"Background music status: {statuses.get(status, 'Unknown')}")
+
+    def _start_background_music(self):
+        """Uruchamia muzykę w tle w pętli."""
+        if os.path.exists(self.background_music_path):
+            self.background_music_player.play()
+            print("Muzyka w tle rozpoczęta (pętla).")
+        else:
+            print("Nie można uruchomić muzyki w tle - brak pliku.")
 
     def pause_main_break_timer(self, x_angle, y_angle):
         """Pauzuje timer przerwy gdy użytkownik patrzy w ekran."""
