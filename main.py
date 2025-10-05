@@ -10,6 +10,7 @@ from PyQt5.QtGui import QMovie
 from ui.tray_icon import BreakReminderTrayIcon
 from ui.enhanced_wellness_window import EnhancedWellnessWindow
 from vision.eye_monitor import EyeMonitorWorker, EyeTracker
+from databaseSync import DatabaseSync
 
 import cv2
 import mediapipe as mp
@@ -90,6 +91,16 @@ class ApplicationController:
 
         # Inicjalizacja komponentów
         self._initialize_components()
+        
+        # Inicjalizacja synchronizacji bazy danych
+        self.db_sync = DatabaseSync('user_data.db')
+        print("DatabaseSync zainicjalizowany")
+        
+        # Zmienne do śledzenia sesji odpoczynku
+        self.session_start_time = None
+        self.session_heartbeat_data = []
+        self.session_time_intervals = []
+        self.session_stress_level = 0.0
 
         self._start_main_timer()
 
@@ -187,6 +198,14 @@ class ApplicationController:
         print("Rozpoczynanie sesji przerwy...")
         self.current_state = self.STATE_BREAK
         self.tray_icon.setToolTip("Break Reminder: Jesteś na PRZERWIE!")
+        
+        # Inicjalizuj dane sesji odpoczynku
+        self.session_start_time = time.time()
+        self.session_heartbeat_data = []
+        self.session_time_intervals = []
+        self.session_stress_level = 0.0
+        print("Rozpoczęto zbieranie danych sesji odpoczynku")
+        print("Oczekiwanie na dane tętna...")
 
         # 1. Zmień stan w wątku Vision, aby zaczął przetwarzać
         if self.eye_monitor_worker:
@@ -209,6 +228,11 @@ class ApplicationController:
         Aktywuje: Tryb Pracy, Główny Timer, WYŁĄCZA ŚLEDZENIE WZROKU W WĄTKU.
         """
         print("Wznawianie sesji pracy...")
+        print("Próba zapisania danych sesji odpoczynku...")
+        
+        # Zapisz dane sesji odpoczynku przed przejściem do pracy
+        self._save_break_session_data()
+        
         self.current_state = self.STATE_WORKING
         self.tray_icon.setToolTip("Break Reminder: Pracuję...")
 
@@ -233,11 +257,15 @@ class ApplicationController:
             return  # Ignoruj śledzenie wzroku w trybie pracy
 
         if looking_at_screen:
-            # Użytkownik zaczął patrzeć w ekran - zapauzuj timer
+            # Użytkownik zaczął patrzeć w ekran - zapauzuj timer i zwiększ stres
             self.pause_main_break_timer(x_angle, y_angle)
+            if hasattr(self, 'session_stress_level'):
+                self.session_stress_level = min(1.0, self.session_stress_level + 0.1)
         else:
-            # Użytkownik przestał patrzeć w ekran - wznów timer
+            # Użytkownik przestał patrzeć w ekran - wznów timer i zmniejsz stres
             self.resume_main_break_timer()
+            if hasattr(self, 'session_stress_level'):
+                self.session_stress_level = max(0.0, self.session_stress_level - 0.05)
 
     def pause_main_timer(self):
         """Zatrzymuje główny timer odliczający czas pracy (np. gdy otwarte ustawienia)."""
@@ -607,12 +635,94 @@ class ApplicationController:
                     text = "BPM: --"
                 else:
                     try:
-                        text = f"BPM: {int(bpm)}"
-                    except Exception:
+                        bpm_value = int(bpm)
+                        text = f"BPM: {bpm_value}"
+                        
+                        # Zapisz dane tętna podczas sesji przerwy (tylko wartości w rozsądnym zakresie)
+                        if (self.current_state == self.STATE_BREAK and 
+                            hasattr(self, 'session_heartbeat_data') and
+                            40 <= bpm_value <= 200):  # filtruj nieprawdopodobne wartości
+                            self.session_heartbeat_data.append(bpm_value)
+                            print(f"Zapisano tętno: {bpm_value} BPM (łącznie: {len(self.session_heartbeat_data)} pomiarów)")
+                            
+                    except (ValueError, TypeError):
                         text = "BPM: --"
                 self.bpm_label.setText(text)
         except Exception as e:
             print(f"Failed to set BPM label: {e}")
+    
+    def _calculate_session_intervals(self):
+        """Oblicza interwały czasowe sesji odpoczynku"""
+        if not hasattr(self, 'session_start_time') or self.session_start_time is None:
+            return [300.0]  # domyślny 5-minutowy interwał
+        
+        session_duration = time.time() - self.session_start_time
+        # Symuluj 3 interwały odpoczynku
+        interval1 = session_duration * 0.4
+        interval2 = session_duration * 0.35  
+        interval3 = session_duration * 0.25
+        
+        return [interval1, interval2, interval3]
+    
+    def _calculate_session_score(self, time_intervals):
+        """Oblicza punkty za sesję używając ScoreManager"""
+        from game.score_manager import ScoreManager
+        score_manager = ScoreManager()
+        return score_manager.calculate_session_score(time_intervals)
+    
+    def _save_break_session_data(self):
+        """Zapisuje dane sesji odpoczynku do bazy danych - tylko jeśli są rzeczywiste dane"""
+        if not hasattr(self, 'db_sync') or not hasattr(self, 'session_start_time'):
+            print("Brak systemu synchronizacji lub danych sesji")
+            return
+        
+        if self.session_start_time is None:
+            print("Sesja nie była rozpoczęta")
+            return
+        
+        # Sprawdź czy są rzeczywiste dane tętna
+        if not self.session_heartbeat_data or len(self.session_heartbeat_data) == 0:
+            print("Brak danych tętna - sesja nie zostanie zapisana")
+            # Wyczyść dane sesji
+            self.session_start_time = None
+            self.session_heartbeat_data = []
+            self.session_time_intervals = []
+            self.session_stress_level = 0.0
+            return
+        
+        try:
+            # Przygotuj dane sesji (tylko rzeczywiste dane)
+            heartbeat_data = self.session_heartbeat_data
+            time_intervals = self._calculate_session_intervals()
+            stress_level = max(0.0, min(1.0, self.session_stress_level))
+            points = self._calculate_session_score(time_intervals)
+            
+            # Zapisz do bazy danych
+            session_id = self.db_sync.sync_session(
+                user_id=1,
+                heartbeat_data=heartbeat_data,
+                stress_level=stress_level,
+                time_intervals=time_intervals,
+                points=points,
+                exercise_type='break'
+            )
+            
+            print(f"Sesja odpoczynku zapisana:")
+            print(f"   - ID sesji: {session_id}")
+            print(f"   - Czas trwania: {sum(time_intervals):.1f}s")
+            print(f"   - Pomiary tętna: {len(heartbeat_data)}")
+            print(f"   - Średnie tętno: {sum(heartbeat_data)/len(heartbeat_data):.1f} BPM")
+            print(f"   - Poziom stresu: {stress_level*100:.0f}%")
+            print(f"   - Punkty: {points}")
+            
+            # Wyczyść dane sesji
+            self.session_start_time = None
+            self.session_heartbeat_data = []
+            self.session_time_intervals = []
+            self.session_stress_level = 0.0
+            
+        except Exception as e:
+            print(f"Błąd zapisywania sesji: {e}")
 
     def run(self):
         """Uruchamia pętlę zdarzeń aplikacji."""
