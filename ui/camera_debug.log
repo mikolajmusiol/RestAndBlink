@@ -3604,3 +3604,13 @@
 2025-10-05 03:06:22,291 DEBUG findfont: score(FontEntry(fname='/usr/share/fonts/noto/NotoSerifLao-Light.ttf', name='Noto Serif Lao', style='normal', variant='normal', weight=300, stretch='normal', size='scalable')) = 10.145
 2025-10-05 03:06:22,291 DEBUG findfont: score(FontEntry(fname='/usr/share/fonts/noto/NotoSansOldPermic-Regular.ttf', name='Noto Sans Old Permic', style='normal', variant='normal', weight=400, stretch='normal', size='scalable')) = 10.05
 2025-10-05 03:06:22,291 DEBUG findfont: Matching sans\-serif:style=normal:variant=normal:weight=normal:stretch=normal:size=14.0 to DejaVu Sans ('/home/jaromek/Programming/miniconda3/envs/HackYeah/lib/python3.12/site-packages/matplotlib/mpl-data/fonts/ttf/DejaVuSans.ttf') with score of 0.050000.
+<<<<<<< HEAD
+=======
+2025-10-05 03:11:12,481 DEBUG matplotlib data path: /home/jaromek/Programming/miniconda3/envs/HackYeah/lib/python3.12/site-packages/matplotlib/mpl-data
+2025-10-05 03:11:12,487 DEBUG CONFIGDIR=/home/jaromek/.config/matplotlib
+2025-10-05 03:11:12,488 DEBUG interactive is False
+2025-10-05 03:11:12,488 DEBUG platform is linux
+2025-10-05 03:11:12,545 DEBUG CACHEDIR=/home/jaromek/.cache/matplotlib
+2025-10-05 03:11:12,552 DEBUG Using fontManager instance from /home/jaromek/.cache/matplotlib/fontlist-v390.json
+2025-10-05 03:11:12,955 INFO MediaPipe FaceMesh initialized successfully
+>>>>>>> main
