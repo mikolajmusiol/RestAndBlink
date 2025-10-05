@@ -45,89 +45,78 @@ class ConfigureTab(QWidget):
         self.parent_window = parent
         self._setup_ui()
         self._init_calibration_system()
-    
+
     def _setup_ui(self):
         """Setup the configuration interface."""
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(30, 20, 30, 20)
+        layout.setContentsMargins(40, 20, 40, 30)
         layout.setSpacing(20)
-        
-        # Title
+
+        # Tytuł
         title_label = QLabel("Konfiguracja Kamery")
         title_label.setAlignment(Qt.AlignCenter)
-        title_label.setFont(QFont("Segoe UI", 24))
-        title_label.setStyleSheet("color: #e8e9ea; margin: 50px;")
+        title_label.setFont(QFont("Segoe UI", 22, QFont.Bold))
+        title_label.setStyleSheet("color: #e8e9ea; margin-top: 20px;")
         layout.addWidget(title_label)
-        
-        # Description
-        desc_label = QLabel("Panel umożliwiający konfigurację kamery. Prawidłowo skonfigurowana kamera umożliwa detekcję aktywności na wielu monitorach.")
+
+        # Opis
+        desc_label = QLabel(
+            "Skonfiguruj kamerę, aby umożliwić detekcję aktywności użytkownika na wszystkich monitorach.\n"
+            "Upewnij się, że kamera jest włączona i skierowana na twarz."
+        )
         desc_label.setAlignment(Qt.AlignCenter)
-        desc_label.setFont(QFont("Segoe UI", 14))
-        desc_label.setStyleSheet("color: #a8b5c1; margin-bottom: 30px;")
+        desc_label.setFont(QFont("Segoe UI", 11))
+        desc_label.setStyleSheet("color: #a8b5c1;")
         desc_label.setWordWrap(True)
         layout.addWidget(desc_label)
-        
-        # Camera preview
+
+        # Podgląd kamery
         self.camera_label = QLabel()
         self.camera_label.setAlignment(Qt.AlignCenter)
-        self.camera_label.setFixedSize(640, 480)
-        self.camera_label.setStyleSheet("border: 2px solid #2c3e50; border-radius: 10px; background: black;")
-        layout.addWidget(self.camera_label, alignment=Qt.AlignCenter)
-        
-        # Status label
-        self.status_label = QLabel("Kliknij przycisk, aby rozpocząć konfigurację kamery.")
-        self.status_label.setAlignment(Qt.AlignCenter)
-        self.status_label.setStyleSheet("color: #f0f0f0; font-size: 16px; margin: 10px;")
-        layout.addWidget(self.status_label)
-        
-        # Configuration history
-        self.eyes_list = QListWidget()
-        self.eyes_list.setStyleSheet("""
-            QListWidget {
-                color: #e8e9ea; 
-                background: #111214; 
-                border: 1px solid #2c3e50;
-                border-radius: 5px;
-                padding: 5px;
-            }
-            QListWidget::item {
-                padding: 5px;
-                margin: 2px;
-            }
-            QListWidget::item:selected {
-                background: #2c3e50;
-            }
+        self.camera_label.setFixedSize(640, 400)
+        self.camera_label.setStyleSheet("""
+            border: 2px solid #2c3e50;
+            border-radius: 10px;
+            background-color: black;
         """)
-        self.eyes_list.setFixedHeight(160)
-        layout.addWidget(self.eyes_list)
-        
-        # Progress bar
+        layout.addWidget(self.camera_label, alignment=Qt.AlignCenter)
+
+        # === DOLNY PANEL (pasek + przycisk) ===
+        bottom_frame = QFrame()
+        bottom_layout = QHBoxLayout(bottom_frame)
+        bottom_layout.setContentsMargins(0, 0, 0, 0)
+        bottom_layout.setSpacing(15)
+
+        # Pasek postępu
         self.progress = QProgressBar()
         self.progress.setValue(0)
+        self.progress.setFixedHeight(22)
+        self.progress.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.progress.setStyleSheet("""
             QProgressBar {
                 background: #2c3e50;
                 color: white;
                 border-radius: 5px;
                 text-align: center;
-                padding: 2px;
+                font-size: 11px;
             }
             QProgressBar::chunk {
                 background: #1abc9c;
-                border-radius: 3px;
+                border-radius: 5px;
             }
         """)
-        layout.addWidget(self.progress)
-        
-        # Configuration button
-        self.calibrate_btn = QPushButton("Rozpocznij konfigurację kamery")
+        bottom_layout.addWidget(self.progress, stretch=3)
+
+        # Przyciski obok paska
+        self.calibrate_btn = QPushButton("Rozpocznij konfigurację")
+        self.calibrate_btn.setFixedHeight(36)
         self.calibrate_btn.setStyleSheet("""
             QPushButton {
                 background-color: #1abc9c;
                 color: white;
-                padding: 12px 24px;
-                border-radius: 5px;
-                font-size: 14px;
+                padding: 6px 18px;
+                border-radius: 6px;
+                font-size: 13px;
                 font-weight: bold;
             }
             QPushButton:hover {
@@ -142,10 +131,12 @@ class ConfigureTab(QWidget):
             }
         """)
         self.calibrate_btn.clicked.connect(self.start_calibration)
-        layout.addWidget(self.calibrate_btn, alignment=Qt.AlignCenter)
-        
+        bottom_layout.addWidget(self.calibrate_btn, stretch=1)
+
+        layout.addWidget(bottom_frame)
+
         layout.addStretch()
-    
+
     def _init_calibration_system(self):
         """Initialize the camera calibration system."""
         # Camera and timer setup

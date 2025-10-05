@@ -142,6 +142,7 @@ class ApplicationController:
         
         # Pokaż okno od razu przy starcie aplikacji
         self.settings_window.show()
+        
 
     def _connect_signals(self):
         """Łączy sygnały pomiędzy komponentami."""
